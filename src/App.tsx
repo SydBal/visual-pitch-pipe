@@ -231,16 +231,15 @@ function App() {
       // Create an SVG renderer and attach it
       const renderer = new Renderer(containerRef.current.id, Renderer.Backends.SVG);
 
-      const width = 160;
-
       // Configure the rendering context.
-      renderer.resize(width, 200);
+      // initial width is set to 1 to allow dynamic resizing
+      renderer.resize(1, 200);
       const context = renderer.getContext();
       context.setFont('Arial', 10);
 
       // Create a stave
-      // width-1 to ensure elements fit within the SVG
-      const stave = new Stave(0, 40, width - 1);
+      // initial width is set to 0 to allow dynamic resizing
+      const stave = new Stave(0, 40, 0);
 
       // Add a clef and time signature.
       stave.addClef(clef);
@@ -261,6 +260,16 @@ function App() {
       Formatter.FormatAndDraw(context, stave, [note]);
 
       stave.setContext(context).draw();
+
+      // Get the location of the note's right 
+      const noteRightEdgeX = note.getAbsoluteX() - note.getX() + note.getWidth();
+
+      // Resize the stave and canvas to fit the note loaction
+      const notePadding = 12;
+      stave.setWidth(noteRightEdgeX + notePadding);
+      Formatter.FormatAndDraw(context, stave, [note]);
+      stave.setContext(context).draw();
+      renderer.resize(noteRightEdgeX + notePadding + 1, 200);
     }
   }, [
     clef,
@@ -310,7 +319,11 @@ function App() {
       <div className='note-controls'>
         <div className='note-controls-location'>
           <label>Note Location: </label>
-          <input type='range' min='-14' max='21' step='1' onChange={handleNoteLocationChange} />
+          {/* 
+            The range is set from -14 to 20 to match the NoteLocationMapping keys.
+            Adjusted the max value to 20 to match the highest note in the mapping to prevent overflow.
+          */}
+          <input type='range' min='-14' max='20' step='1' onChange={handleNoteLocationChange} />
         </div>
         <div className='note-controls-accidental'>
           <label>Note Accidental: </label>
