@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, use } from 'react';
 import { 
   Renderer,
   Stave,
@@ -9,13 +9,16 @@ import {
 } from 'vexflow';
 import './App.css'
 
-type NoteLocation = number; // an integer representing the note's position -14 -> 21
+type NoteLocation = string; // an integer representing the note's position -14 -> 21
 type Clef = 'treble' | 'bass' | 'alto' | 'tenor';
-type NumberOfKeySignatureAccidentals = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
+type NumberOfKeySignatureAccidentals = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7';
 type NoteAccidentalType = 'none' | '#' | 'b' | 'n';
 type KeySignatureAccidentalType = 'sharp' | 'flat';
+type KeySignature = string; // a string representing the key signature, e.g. 'C', 'G', 'D', etc.
+type NotesAccentedInKey = string; // a string representing the notes that are accented in the key signature, e.g. '', 'F', 'FC', etc.
 
-const NoteLocationMapping = {
+
+const NoteLocationMapping: Record<Clef, Record<NoteLocation, string>> = {
   'treble': {
     '-14': 'F/2',
     '-13': 'G/2',
@@ -171,7 +174,7 @@ const NoteLocationMapping = {
 }
 
 
-const KeySignatureMapping = {
+const KeySignatureMapping: Record<KeySignatureAccidentalType, Record<NumberOfKeySignatureAccidentals, >> = {
   sharp: {
     '0': 'C',
     '1': 'G',
@@ -181,6 +184,7 @@ const KeySignatureMapping = {
     '5': 'B',
     '6': 'F#',
     '7': 'C#',
+
   },
   flat: {
     '0': 'C',
@@ -194,17 +198,85 @@ const KeySignatureMapping = {
   },
 }
 
+const keySignatureToAccidentalledNotes: Record<KeySignature, NotesAccentedInKey> = {
+  'C': '',
+  'G': 'F',
+  'D': 'FC',
+  'A': 'FCG',
+  'E': 'FCGD',
+  'B': 'FCGDA',
+  'F#': 'FCGDAE',
+  'C#': 'FCGDAEB',
+  'F': 'B',
+  'Bb': 'BE',
+  'Eb': 'BEA',
+  'Ab': 'BEAD',
+  'Db': 'BEADG',
+  'Gb': 'BEADGC',
+  'Cb': 'BEADGCF',
+}
+
+const accidentalTypeToCharacterMapping: Record<NoteAccidentalType, string> = {
+  'none': '',
+  '#': '♯',
+  'b': '♭',
+  'n': '♮'
+};
+
 function App() {
-  const [noteLocation, setNoteLocation] = useState<NoteLocation>(0);
+  const [noteLocation, setNoteLocation] = useState<NoteLocation>('0');
   const [noteAccidentalType, setNoteAccidentalType] = useState<NoteAccidentalType>('none');
   const [clef, setClef] = useState<Clef>('treble');
   const [numberOfKeySignatureAccidentals, setNumberOfKeySignatureAccidentals] = useState<NumberOfKeySignatureAccidentals>(0);
   const [keySignatureAccidentalType, setKeySignatureAccidentalType] = useState<KeySignatureAccidentalType>('sharp');
 
+  const keySignature = useMemo(() => {
+    return KeySignatureMapping[keySignatureAccidentalType][numberOfKeySignatureAccidentals];
+  }, [keySignatureAccidentalType, numberOfKeySignatureAccidentals]);
+
+  const keySignatureDisplayString = useMemo(() => {
+    let displayString = keySignature;
+    Object.entries(accidentalTypeToCharacterMapping).forEach(([accidentalKey, accidentalCharacter]) => {
+      displayString = displayString.replace(accidentalKey, accidentalCharacter);
+    });
+    return displayString;
+  }, [keySignature]);
+
+  const noteLocationName = useMemo(() => {
+    return NoteLocationMapping[clef][noteLocation];
+  }, [clef, noteLocation]);
+
+  const {
+    note: calculatedNote,
+    octave: calculatedNoteOctave,
+    accidental: calculatedNoteAccidental
+  } = useMemo(() => {
+    // Split the note location to get the note and octave
+    const noteOctaveTuple = noteLocationName.split('/')
+
+    // Calculate the accidental
+    let noteAccidental;
+    if (noteAccidentalType === 'n') {
+      noteAccidental = '';
+    } else if (noteAccidentalType === 'none' && keySignatureToAccidentalledNotes[keySignature].includes(noteOctaveTuple[0])) {
+      noteAccidental = accidentalTypeToCharacterMapping[keySignatureAccidentalType === 'sharp' ? '#' : 'b'];
+    } else {
+      noteAccidental = accidentalTypeToCharacterMapping[noteAccidentalType];
+    }
+    
+
+
+    return {
+      note: noteOctaveTuple[0],
+      octave: noteOctaveTuple[1],
+      accidental: noteAccidental,
+    }
+  }, [clef, noteLocation, noteAccidentalType]);
+
   const containerRef = useRef<HTMLDivElement>(null);
 
   const handleNoteLocationChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setNoteLocation(Number(event.target.value) as NoteLocation);
+    setNoteLocation(event.target.value as NoteLocation);
   };
 
   const handleNoteAccidentalChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -216,7 +288,7 @@ function App() {
   };
 
   const handleKeySignatureNumberOfAccidentalsChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setNumberOfKeySignatureAccidentals(Number(event.target.value) as NumberOfKeySignatureAccidentals);
+    setNumberOfKeySignatureAccidentals(event.target.value as NumberOfKeySignatureAccidentals);
   };
 
   const handleKeySignatureAccientalTypeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -235,30 +307,37 @@ function App() {
       // initial width is set to 1 to allow dynamic resizing
       renderer.resize(1, 200);
       const context = renderer.getContext();
-      context.setFont('Arial', 10);
 
       // Create a stave
       // initial width is set to 0 to allow dynamic resizing
-      const stave = new Stave(0, 40, 0);
+      const staveOptions = {
+        leftBar: true,
+        rightBar: true,
+      }
+      const stave = new Stave(0, 40, 0, staveOptions);
 
       // Add a clef and time signature.
       stave.addClef(clef);
 
-      stave.addKeySignature(KeySignatureMapping[keySignatureAccidentalType][numberOfKeySignatureAccidentals]);
+      stave.addKeySignature(keySignature);
 
       // Create a note at the specified location
-      const noteName = NoteLocationMapping[clef][noteLocation];
       const note = new StaveNote({
         clef,
-        keys: [noteName],
+        keys: [noteLocationName],
         duration: 'q',
       });
-      Beam.generateBeams([note]);
+
+      // Add the accidental to the note if it is not 'none'
       if (noteAccidentalType !== 'none') {
         note.addModifier(new Accidental(noteAccidentalType));
       }
-      Formatter.FormatAndDraw(context, stave, [note]);
 
+      // Format the beam for the note
+      Beam.generateBeams([note]);
+
+      // First draw the zero width stave with the note
+      Formatter.FormatAndDraw(context, stave, [note]);
       stave.setContext(context).draw();
 
       // Get the location of the note's right 
@@ -267,8 +346,12 @@ function App() {
       // Resize the stave and canvas to fit the note loaction
       const notePadding = 12;
       stave.setWidth(noteRightEdgeX + notePadding);
+
+      // Clear the container of any previous content and redraw and render
+      context.clear();
       Formatter.FormatAndDraw(context, stave, [note]);
       stave.setContext(context).draw();
+      // + 1 padding to avoid any overflow rendering issues
       renderer.resize(noteRightEdgeX + notePadding + 1, 200);
     }
   }, [
@@ -312,9 +395,13 @@ function App() {
             <option value='7'>7</option>
           </select>
         </div>
+        Key: {keySignatureDisplayString}
       </div>
       <div className='stave-container'>
         <div ref={containerRef} id='stave-visualization'></div>
+      </div>
+      <div className='note-name'>
+        Note Name: {calculatedNote}{calculatedNoteAccidental}<sub>{calculatedNoteOctave}</sub>
       </div>
       <div className='note-controls'>
         <div className='note-controls-location'>
@@ -323,7 +410,7 @@ function App() {
             The range is set from -14 to 20 to match the NoteLocationMapping keys.
             Adjusted the max value to 20 to match the highest note in the mapping to prevent overflow.
           */}
-          <input type='range' min='-14' max='20' step='1' onChange={handleNoteLocationChange} />
+          <input type='range' min='-14' max='20' step='1' value={noteLocation} onChange={handleNoteLocationChange} />
         </div>
         <div className='note-controls-accidental'>
           <label>Note Accidental: </label>
