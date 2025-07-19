@@ -48,5 +48,4 @@ export function playNote(noteName: string, octave: number) {
   oscillator.start();
   oscillator.stop(audioContext.currentTime + 1);
   oscillator.onended = () => audioContext.close();
-  console.log(`Playing note: ${noteName}${octave} at frequency: ${frequency} Hz`);
 }

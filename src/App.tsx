@@ -67,9 +67,7 @@ function App() {
     let noteName = calculatedNote;
     const accidentalSymbol = characterToAccidentalType[calculatedNoteAccidental] || '';
     if (accidentalSymbol === '#' || accidentalSymbol === 'b') {
-      noteName = `${calculatedNote}${accidentalSymbol}`;
-    } else {
-      noteName = calculatedNote;
+      noteName += accidentalSymbol;
     }
     const octave = parseInt(calculatedNoteOctave);
     playNote(noteName, octave);
@@ -129,7 +127,8 @@ function App() {
 
       // Resize the stave and canvas to fit the note loaction
       const notePadding = 12;
-      stave.setWidth(noteRightEdgeX + notePadding);
+      const paddedNoteRightEdgeX = noteRightEdgeX + notePadding;
+      stave.setWidth(paddedNoteRightEdgeX);
 
       // Clear the container of any previous content and redraw and render
       context.clear();
@@ -137,6 +136,19 @@ function App() {
       stave.setContext(context).draw();
       // + 1 padding to avoid any overflow rendering issues
       renderer.resize(noteRightEdgeX + notePadding + 1, defaultStaveHeight);
+
+      // Move the invisible slider to the correct position
+      const slider = document.getElementById('hidden-note-slider') as HTMLInputElement;
+      slider.style.left = `${(
+        // half of the container width
+        containerRef.current.clientWidth / 2
+        // minus half of the stave width
+        - (paddedNoteRightEdgeX / 2)
+        // plus the note's right edge position
+        + noteRightEdgeX
+        // minus a few of pixels to center over the note
+        - 10
+      )}px`;
     }
   }, [
     clef,
@@ -186,6 +198,7 @@ function App() {
       </div>
       <div className='stave-container'>
         <div ref={containerRef} id='stave-visualization' style={{ height: defaultStaveHeight }}></div>
+        <input id="hidden-note-slider" aria-hidden type='range' min='-14' max='20' step='1' value={noteLocation} onChange={handleNoteLocationChange} />
       </div>
       <div className='note-name'>
         Note Name: {calculatedNote}{calculatedNoteAccidental}<sub>{calculatedNoteOctave}</sub>

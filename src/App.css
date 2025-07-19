@@ -11,9 +11,23 @@
   gap: 1rem;
 }
 
+.stave-container {
+  position: relative;
+}
+
 #stave-visualization svg {
   filter: invert(1);
   @media (prefers-color-scheme: light) {
     filter: invert(0);
   }
+}
+
+#hidden-note-slider {
+  position: absolute;
+  bottom: -3px;
+  left: 50%;
+  width: 185px;
+  transform:rotate(-90deg);
+  transform-origin: left center;
+  opacity: 0;
 }
