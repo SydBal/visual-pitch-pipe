@@ -4,6 +4,6 @@ import type { ClefType, StaffPosition, NoteLocationName } from '../types/musicTy
 
 export function useNoteLocationName(clef: ClefType, noteLocation: StaffPosition): NoteLocationName {
   return useMemo(() => {
-    return NoteLocationMapping[clef][noteLocation];
+    return NoteLocationMapping[clef][noteLocation] as NoteLocationName;
   }, [clef, noteLocation]);
 }

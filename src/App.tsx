@@ -1,7 +1,9 @@
 import { useRef, useEffect } from 'react';
 import { Renderer, Stave, StaveNote, Formatter, Accidental, Beam } from 'vexflow';
 import { usePitchPipeState } from './hooks/usePitchPipeState';
-import type { StaffPosition, NoteAccidental, ClefType, KeySignatureAccidentalCount, KeySignatureAccidental } from './types/musicTypes';
+import keySignatureToAccidentalledNotes from './musicData/keySignatureToAccidentalledNotes';
+import KeySignatureMapping from './musicData/KeySignatureMapping';
+import type { StaffPosition, NoteAccidental, ClefType, KeySignatureAccidentalCount, KeySignatureAccidental, KeySignatureName } from './types/musicTypes';
 import './App.css'
 
 function App() {
@@ -21,6 +23,14 @@ function App() {
 
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const keySignatureNames: KeySignatureName[] = Object.keys(keySignatureToAccidentalledNotes) as KeySignatureName[];
+
+  // Group key signature names by accidental type in a single array
+  const keySignatureGroups = [
+    { label: 'Sharp Keys', keys: Object.entries(KeySignatureMapping['sharp']).map(([, key]) => key) },
+    { label: 'Flat Keys', keys: Object.entries(KeySignatureMapping['flat']).map(([, key]) => key) },
+  ];
+
   const handleNoteLocationChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setNoteLocation(event.target.value as StaffPosition);
   };
@@ -39,6 +49,24 @@ function App() {
 
   const handleKeySignatureAccientalTypeChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     setKeySignatureAccidentalType(event.target.value as KeySignatureAccidental);
+  };
+
+  const handleKeySignatureChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    // Find the accidental type and number of accidentals for the selected key
+    const selectedKey = event.target.value as KeySignatureName;
+    // Find accidental type and count by searching KeySignatureMapping
+    let found = false;
+    for (const accidentalType of ['sharp', 'flat'] as const) {
+      for (const count of Object.keys(KeySignatureMapping[accidentalType]) as KeySignatureAccidentalCount[]) {
+        if (KeySignatureMapping[accidentalType][count] === selectedKey) {
+          setKeySignatureAccidentalType(accidentalType);
+          setNumberOfKeySignatureAccidentals(count);
+          found = true;
+          break;
+        }
+      }
+      if (found) break;
+    }
   };
 
   // Redraw the stave and note whenever the relevant state changes
@@ -145,7 +173,17 @@ function App() {
             <option value='7'>7</option>
           </select>
         </div>
-        Key: {keySignatureDisplayString}
+        <div className='key-signature-controls-key'>
+          <label>Key: </label>
+          <select value={keySignature} onChange={handleKeySignatureChange}>
+            {keySignatureGroups.map(group => [
+              <option key={group.label} disabled>{group.label}</option>,
+              ...group.keys.map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))
+            ])}
+          </select>
+        </div>
       </div>
       <div className='stave-container'>
         <div ref={containerRef} id='stave-visualization' style={{ height: defaultStaveHeight }}></div>

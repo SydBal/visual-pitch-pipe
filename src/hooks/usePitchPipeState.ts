@@ -8,8 +8,6 @@ import type {
   KeySignatureAccidentalCount,
   NoteAccidental,
   KeySignatureAccidental,
-  NoteLocationName,
-  KeySignatureName,
 } from '../types/musicTypes';
 
 export function usePitchPipeState() {
