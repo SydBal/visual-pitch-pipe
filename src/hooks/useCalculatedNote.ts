@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import keySignatureToAccidentalledNotes from '../musicData/keySignatureToAccidentalledNotes';
-import accidentalTypeToCharacterMapping from '../musicData/accidentalTypeToCharacterMapping';
+import keySignatureToAccidentalledNotes from '../data/keySignatureToAccidentalledNotes';
+import accidentalTypeToCharacterMapping from '../data/accidentalTypeToCharacterMapping';
 import type { ClefType, NoteAccidental, KeySignatureAccidental } from '../types/musicTypes';
 
 export function useCalculatedNote(

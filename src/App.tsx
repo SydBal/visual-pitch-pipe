@@ -1,8 +1,9 @@
 import { useRef, useEffect } from 'react';
 import { Renderer, Stave, StaveNote, Formatter, Accidental, Beam } from 'vexflow';
 import { usePitchPipeState } from './hooks/usePitchPipeState';
-import keySignatureToAccidentalledNotes from './musicData/keySignatureToAccidentalledNotes';
-import KeySignatureMapping from './musicData/KeySignatureMapping';
+import noteToMidi from './data/noteToMidi';
+import KeySignatureMapping from './data/keySignatureMapping';
+import KeySignatureDropdown from './components/KeySignatureDropdown';
 import type { StaffPosition, NoteAccidental, ClefType, KeySignatureAccidentalCount, KeySignatureAccidental, KeySignatureName } from './types/musicTypes';
 import './App.css'
 
@@ -14,7 +15,6 @@ function App() {
     numberOfKeySignatureAccidentals, setNumberOfKeySignatureAccidentals,
     keySignatureAccidentalType, setKeySignatureAccidentalType,
     keySignature,
-    keySignatureDisplayString,
     noteLocationName,
     calculatedNote,
     calculatedNoteOctave,
@@ -22,14 +22,6 @@ function App() {
   } = usePitchPipeState();
 
   const containerRef = useRef<HTMLDivElement>(null);
-
-  const keySignatureNames: KeySignatureName[] = Object.keys(keySignatureToAccidentalledNotes) as KeySignatureName[];
-
-  // Group key signature names by accidental type in a single array
-  const keySignatureGroups = [
-    { label: 'Sharp Keys', keys: Object.entries(KeySignatureMapping['sharp']).map(([, key]) => key) },
-    { label: 'Flat Keys', keys: Object.entries(KeySignatureMapping['flat']).map(([, key]) => key) },
-  ];
 
   const handleNoteLocationChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setNoteLocation(event.target.value as StaffPosition);
@@ -56,7 +48,7 @@ function App() {
     const selectedKey = event.target.value as KeySignatureName;
     // Find accidental type and count by searching KeySignatureMapping
     let found = false;
-    for (const accidentalType of ['sharp', 'flat'] as const) {
+    for (const accidentalType of Object.keys(KeySignatureMapping) as KeySignatureAccidental[]) {
       for (const count of Object.keys(KeySignatureMapping[accidentalType]) as KeySignatureAccidentalCount[]) {
         if (KeySignatureMapping[accidentalType][count] === selectedKey) {
           setKeySignatureAccidentalType(accidentalType);
@@ -140,6 +132,32 @@ function App() {
     keySignatureAccidentalType
   ]);
 
+  const playNote = () => {
+    // Compose note name with accidental
+    let noteName = calculatedNote;
+    if (calculatedNoteAccidental === '♯') noteName += '#';
+    if (calculatedNoteAccidental === '♭') noteName += 'b';
+    // Default to C if not found
+    const midiBase = noteToMidi[noteName] ?? 0;
+    const octave = parseInt(calculatedNoteOctave, 10);
+    // MIDI note number: C-1 = 0, C0 = 12, C1 = 24, ..., C4 = 60, C5 = 72
+    // So: midiNumber = 12 * (octave + 1) + midiBase
+    // But for C4 (middle C), octave should be 4
+    // If octave is NaN, default to 4
+    const midiNumber = 12 * ((isNaN(octave) ? 4 : octave) + 1) + midiBase;
+    const frequency = 440 * Math.pow(2, (midiNumber - 69) / 12);
+    const audioContext = new window.AudioContext();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    oscillator.type = 'sine';
+    oscillator.frequency.value = frequency;
+    gainNode.gain.value = 0.5;
+    oscillator.connect(gainNode).connect(audioContext.destination);
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + 1);
+    oscillator.onended = () => audioContext.close();
+  };
+
   return (
     <>
       <h1>Visual Pitch Pipe</h1>
@@ -175,14 +193,7 @@ function App() {
         </div>
         <div className='key-signature-controls-key'>
           <label>Key: </label>
-          <select value={keySignature} onChange={handleKeySignatureChange}>
-            {keySignatureGroups.map(group => [
-              <option key={group.label} disabled>{group.label}</option>,
-              ...group.keys.map(name => (
-                <option key={name} value={name}>{name}</option>
-              ))
-            ])}
-          </select>
+          <KeySignatureDropdown value={keySignature} onChange={handleKeySignatureChange} />
         </div>
       </div>
       <div className='stave-container'>
@@ -212,7 +223,7 @@ function App() {
 
       </div>
       <div className='play-pitch'>
-        <button>Play Pitch</button>
+        <button onClick={playNote}>Play Pitch</button>
       </div>
     </>
   )

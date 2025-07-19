@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
-import KeySignatureMapping from '../musicData/keySignatureMapping';
-import accidentalTypeToCharacterMapping from '../musicData/accidentalTypeToCharacterMapping';
+import KeySignatureMapping from '../data/keySignatureMapping';
+import accidentalTypeToCharacterMapping from '../data/accidentalTypeToCharacterMapping';
 import type { KeySignatureAccidental, KeySignatureAccidentalCount } from '../types/musicTypes';
 
 export function useKeySignature(keySignatureAccidentalType: KeySignatureAccidental, numberOfKeySignatureAccidentals: KeySignatureAccidentalCount) {

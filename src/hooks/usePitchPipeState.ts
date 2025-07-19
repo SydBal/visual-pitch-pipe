@@ -8,7 +8,12 @@ import type {
   KeySignatureAccidentalCount,
   NoteAccidental,
   KeySignatureAccidental,
+  NoteLocationName,
+  KeySignatureName,
 } from '../types/musicTypes';
+import noteLocationMapping from '../data/noteLocationMapping';
+import keySignatureToAccidentalledNotes from '../data/keySignatureToAccidentalledNotes';
+import accidentalTypeToCharacterMapping from '../data/accidentalTypeToCharacterMapping';
 
 export function usePitchPipeState() {
   const [noteLocation, setNoteLocation] = useState<StaffPosition>('0');
