@@ -67,7 +67,9 @@ function App() {
     let noteName = calculatedNote;
     const accidentalSymbol = characterToAccidentalType[calculatedNoteAccidental] || '';
     if (accidentalSymbol === '#' || accidentalSymbol === 'b') {
-      noteName += accidentalSymbol;
+      noteName = `${calculatedNote}${accidentalSymbol}`;
+    } else {
+      noteName = calculatedNote;
     }
     const octave = parseInt(calculatedNoteOctave);
     playNote(noteName, octave);
