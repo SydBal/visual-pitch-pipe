@@ -1,6 +1,6 @@
-import type { KeySigAccidental, KeySigAccidentalCount } from '../types/musicTypes';
+import type { KeySignatureAccidental, KeySignatureAccidentalCount } from '../types/musicTypes';
 
-const KeySignatureMapping: Record<KeySigAccidental, Record<KeySigAccidentalCount, string>> = {
+const KeySignatureMapping: Record<KeySignatureAccidental, Record<KeySignatureAccidentalCount, string>> = {
   sharp: {
     '0': 'C',
     '1': 'G',

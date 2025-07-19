@@ -41,6 +41,10 @@ function App() {
     setKeySignatureAccidentalType(event.target.value as KeySignatureAccidental);
   };
 
+  // Redraw the stave and note whenever the relevant state changes
+  // This includes the clef, note location, note accidental type, number of key signature
+  // accidentals, and key signature accidental type.
+  const defaultStaveHeight = 200;
   useEffect(() => {
     if (containerRef.current) {
       // Clear the container of any previous content
@@ -51,7 +55,7 @@ function App() {
 
       // Configure the rendering context.
       // initial width is set to 1 to allow dynamic resizing
-      renderer.resize(1, 200);
+      renderer.resize(1, defaultStaveHeight);
       const context = renderer.getContext();
 
       // Create a stave
@@ -98,7 +102,7 @@ function App() {
       Formatter.FormatAndDraw(context, stave, [note]);
       stave.setContext(context).draw();
       // + 1 padding to avoid any overflow rendering issues
-      renderer.resize(noteRightEdgeX + notePadding + 1, 200);
+      renderer.resize(noteRightEdgeX + notePadding + 1, defaultStaveHeight);
     }
   }, [
     clef,
@@ -144,7 +148,7 @@ function App() {
         Key: {keySignatureDisplayString}
       </div>
       <div className='stave-container'>
-        <div ref={containerRef} id='stave-visualization'></div>
+        <div ref={containerRef} id='stave-visualization' style={{ height: defaultStaveHeight }}></div>
       </div>
       <div className='note-name'>
         Note Name: {calculatedNote}{calculatedNoteAccidental}<sub>{calculatedNoteOctave}</sub>
