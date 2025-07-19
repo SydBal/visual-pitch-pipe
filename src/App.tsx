@@ -155,14 +155,14 @@ function App() {
       <div className="key-signature-controls">
         <div className='key-signature-controls-accidental-type'>
           <label>Key Signature Accidental Type: </label>
-          <select defaultValue='sharp' onChange={handleKeySignatureAccientalTypeChange}>
+          <select value={keySignatureAccidentalType} onChange={handleKeySignatureAccientalTypeChange}>
             <option value='sharp'>Sharp</option>
             <option value='flat'>Flat</option>
           </select>
         </div>
         <div className='key-signature-controls-number-of-accidentals'>
           <label>Key Signature Number of Accidentals: </label>
-          <select defaultValue='0' onChange={handleKeySignatureNumberOfAccidentalsChange}>
+          <select value={numberOfKeySignatureAccidentals} onChange={handleKeySignatureNumberOfAccidentalsChange}>
             <option value='0'>0</option>
             <option value='1'>1</option>
             <option value='2'>2</option>
