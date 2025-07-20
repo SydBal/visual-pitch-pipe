@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useKeySignature } from './useKeySignature';
-import { useNoteLocationName } from './useNoteLocationName';
+import { useClefNoteLocations, useNoteLocationName } from './useNoteLocationName';
 import { useCalculatedNote } from './useCalculatedNote';
 import type {
   StaffPosition,
@@ -22,6 +22,7 @@ export function usePitchPipeState() {
     numberOfKeySignatureAccidentals
   );
 
+  const clefNoteLocations = useClefNoteLocations(clef);
   const noteLocationName = useNoteLocationName(clef, noteLocation);
 
   const { note: calculatedNote, octave: calculatedNoteOctave, accidental: calculatedNoteAccidental } = useCalculatedNote(
@@ -41,6 +42,7 @@ export function usePitchPipeState() {
     keySignature,
     keySignatureDisplayString,
     noteLocationName,
+    clefNoteLocations,
     calculatedNote,
     calculatedNoteOctave,
     calculatedNoteAccidental,

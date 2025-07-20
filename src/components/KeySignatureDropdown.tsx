@@ -12,7 +12,9 @@ const KeySignatureDropdown: React.FC<KeySignatureDropdownProps> = ({ value, onCh
     <select value={value} onChange={onChange}>
       <option key="C" value="C">C</option>
       {Object.keys(KeySignatureMapping).map((accidentalType) => [
+        // Add a disabled option for the accidental type
         <option key={accidentalType} disabled>{accidentalType.charAt(0).toUpperCase() + accidentalType.slice(1)}</option>,
+        // Map through the key signatures for this accidental type
         ...Object.values(KeySignatureMapping[accidentalType as KeySignatureAccidental])
           .filter((name) => name !== 'C')
           .map((name) => (

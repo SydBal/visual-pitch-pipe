@@ -16,6 +16,7 @@ function App() {
     numberOfKeySignatureAccidentals, setNumberOfKeySignatureAccidentals,
     keySignatureAccidentalType, setKeySignatureAccidentalType,
     keySignature,
+    clefNoteLocations,
     noteLocationName,
     calculatedNote,
     calculatedNoteOctave,
@@ -26,6 +27,36 @@ function App() {
 
   const handleNoteLocationChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setNoteLocation(event.target.value as StaffPosition);
+  };
+
+  const handleNoteUp = () => {
+    const currentLocation = Number(noteLocation);
+    const nextLocation = clefNoteLocations[(currentLocation + 1).toString()];
+    if (!nextLocation) return;
+    setNoteLocation((prev) => (Number(prev) + 1).toString());
+  };
+
+  const handleNoteDown = () => {
+    const currentLocation = Number(noteLocation);
+    const nextLocation = clefNoteLocations[(currentLocation - 1).toString()];
+    if (!nextLocation) return;
+    setNoteLocation((prev) => (Number(prev) - 1).toString());
+  };
+
+
+  const handleOctaveUp = () => {
+    const currentLocation = Number(noteLocation);
+    const nextLocation = clefNoteLocations[(currentLocation + 7).toString()];
+    if (!nextLocation) return;
+    setNoteLocation((currentLocation + 7).toString());
+  };
+
+  const handleOctaveDown = () => {
+    const currentLocation = Number(noteLocation);
+    const nextLocation = clefNoteLocations[(currentLocation - 7).toString()];
+    if (nextLocation) {
+      setNoteLocation((currentLocation - 7).toString());
+    }
   };
 
   const handleNoteAccidentalChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -198,6 +229,10 @@ function App() {
       </div>
       <div className='stave-container'>
         <div ref={containerRef} id='stave-visualization' style={{ height: defaultStaveHeight }}></div>
+        {/* 
+          The range is set from -14 to 20 to match the NoteLocationMapping keys.
+          Adjusted the max value to 20 to match the highest note in the mapping to prevent overflow.
+        */}
         <input id="hidden-note-slider" aria-hidden type='range' min='-14' max='20' step='1' value={noteLocation} onChange={handleNoteLocationChange} />
       </div>
       <div className='note-name'>
@@ -205,12 +240,14 @@ function App() {
       </div>
       <div className='note-controls'>
         <div className='note-controls-location'>
-          <label>Note Location: </label>
-          {/* 
-            The range is set from -14 to 20 to match the NoteLocationMapping keys.
-            Adjusted the max value to 20 to match the highest note in the mapping to prevent overflow.
-          */}
-          <input type='range' min='-14' max='20' step='1' value={noteLocation} onChange={handleNoteLocationChange} />
+          <label>Note Location:</label>
+          <button onClick={handleNoteUp}>Up</button>
+          <button onClick={handleNoteDown}>Down</button>
+        </div>
+        <div className='note-controls-octave'>
+          <label>Octave:</label>
+          <button onClick={handleOctaveUp}>Up</button>
+          <button onClick={handleOctaveDown}>Down</button>
         </div>
         <div className='note-controls-accidental'>
           <label>Note Accidental: </label>
