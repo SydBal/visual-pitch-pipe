@@ -5,6 +5,7 @@ import KeySignatureMapping from './data/keySignatureMapping';
 import KeySignatureDropdown from './components/KeySignatureDropdown';
 import accidentalToDisplayCharacter from './data/accidentalToDisplayCharacter';
 import { playNote } from './audio/note';
+import { useResize } from './hooks/useResize';
 import type { StaffPosition, NoteAccidental, ClefType, KeySignatureAccidentalCount, KeySignatureAccidental, KeySignatureName } from './types/musicTypes';
 import './App.css'
 
@@ -24,6 +25,7 @@ function App() {
   } = usePitchPipeState();
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const windowSize = useResize();
 
   const handleNoteLocationChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setNoteLocation(event.target.value as StaffPosition);
@@ -189,7 +191,7 @@ function App() {
         // plus half of the stave width
         + (paddedNoteRightEdgeX / 2)
         // plus a few pixels to give some padding
-        + 16
+        + 20
       )}px`;
     }
   }, [
@@ -197,14 +199,15 @@ function App() {
     noteLocation,
     noteAccidentalType,
     numberOfKeySignatureAccidentals,
-    keySignatureAccidentalType
+    keySignatureAccidentalType,
+    windowSize // now using windowSize
   ]);
 
   return (
     <>
       <h1>Visual Pitch Pipe</h1>
       <div className='clef-controls'>
-        <label>Cleft: </label>
+        <label>Cleft:</label>
         <select defaultValue='treble' onChange={handleClefChange}>
           <option value='treble'>Treble</option>
           <option value='bass'>Bass</option>
@@ -213,15 +216,12 @@ function App() {
         </select>
       </div>
       <div className="key-signature-controls">
-        <div className='key-signature-controls-accidental-type'>
-          <label>Key Signature Accidental Type: </label>
-          <select value={keySignatureAccidentalType} onChange={handleKeySignatureAccientalTypeChange}>
-            <option value='sharp'>Sharp</option>
-            <option value='flat'>Flat</option>
-          </select>
+        <div className='key-signature-controls-key'>
+          <label>Key:</label>
+          <KeySignatureDropdown value={keySignature} onChange={handleKeySignatureChange} />
         </div>
         <div className='key-signature-controls-number-of-accidentals'>
-          <label>Key Signature Number of Accidentals: </label>
+          <label>Key Signature Number of Accidentals:</label>
           <select value={numberOfKeySignatureAccidentals} onChange={handleKeySignatureNumberOfAccidentalsChange}>
             <option value='0'>0</option>
             <option value='1'>1</option>
@@ -233,9 +233,12 @@ function App() {
             <option value='7'>7</option>
           </select>
         </div>
-        <div className='key-signature-controls-key'>
-          <label>Key: </label>
-          <KeySignatureDropdown value={keySignature} onChange={handleKeySignatureChange} />
+        <div className='key-signature-controls-accidental-type'>
+          <label>Key Signature Accidental Type:</label>
+          <select value={keySignatureAccidentalType} onChange={handleKeySignatureAccientalTypeChange}>
+            <option value='sharp'>Sharp</option>
+            <option value='flat'>Flat</option>
+          </select>
         </div>
       </div>
       <div className='stave-container'>
@@ -268,7 +271,7 @@ function App() {
           <button onClick={handleOctaveDown}>Down</button>
         </div>
         <div className='note-controls-accidental'>
-          <label>Note Accidental: </label>
+          <label>Note Accidental:</label>
           <select defaultValue='none' onChange={handleNoteAccidentalChange}>
             <option value='none'>None</option>
             <option value='#'>Sharp</option>
@@ -281,7 +284,7 @@ function App() {
         <div className='note-name'>
           Note Name: {calculatedNote}{accidentalToDisplayCharacter[calculatedNoteAccidental]}<sub>{calculatedNoteOctave}</sub>
         </div>
-        <button onClick={handlePlayButtonClick}>Play Pitch</button>
+        <button id="play-button" onClick={handlePlayButtonClick}>Play Pitch</button>
       </div>
     </>
   )
