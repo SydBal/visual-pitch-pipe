@@ -3,7 +3,7 @@ import { Renderer, Stave, StaveNote, Formatter, Accidental, Beam } from 'vexflow
 import { usePitchPipeState } from './hooks/usePitchPipeState';
 import KeySignatureMapping from './data/keySignatureMapping';
 import KeySignatureDropdown from './components/KeySignatureDropdown';
-import accidentalTypeToCharacterMapping from './data/accidentalTypeToCharacterMapping';
+import accidentalToDisplayCharacter from './data/accidentalToDisplayCharacter';
 import { playNote } from './audio/note';
 import type { StaffPosition, NoteAccidental, ClefType, KeySignatureAccidentalCount, KeySignatureAccidental, KeySignatureName } from './types/musicTypes';
 import './App.css'
@@ -168,17 +168,28 @@ function App() {
       // + 1 padding to avoid any overflow rendering issues
       renderer.resize(noteRightEdgeX + notePadding + 1, defaultStaveHeight);
 
-      // Move the invisible slider to the correct position
-      const slider = document.getElementById('hidden-note-slider') as HTMLInputElement;
-      slider.style.left = `${(
+      // Move the invisible slider to overlay the note
+      const invisibleOverlaySlider = document.getElementById('hidden-overlay-slider') as HTMLInputElement;
+      invisibleOverlaySlider.style.left = `${(
         // half of the container width
         containerRef.current.clientWidth / 2
         // minus half of the stave width
         - (paddedNoteRightEdgeX / 2)
         // plus the note's right edge position
         + noteRightEdgeX
-        // minus a few of pixels to center over the note
+        // minus a few pixels to center over the note
         - 10
+      )}px`;
+
+      // Move the visible slider to the right of the stave
+      const visibleSlider = document.getElementById('visible-note-slider') as HTMLInputElement;
+      visibleSlider.style.left = `${(
+        // half of the container width
+        containerRef.current.clientWidth / 2
+        // plus half of the stave width
+        + (paddedNoteRightEdgeX / 2)
+        // plus a few pixels to give some padding
+        + 16
       )}px`;
     }
   }, [
@@ -233,10 +244,17 @@ function App() {
           The range is set from -14 to 20 to match the NoteLocationMapping keys.
           Adjusted the max value to 20 to match the highest note in the mapping to prevent overflow.
         */}
-        <input id="hidden-note-slider" aria-hidden type='range' min='-14' max='20' step='1' value={noteLocation} onChange={handleNoteLocationChange} />
-      </div>
-      <div className='note-name'>
-        Note Name: {calculatedNote}{accidentalTypeToCharacterMapping[calculatedNoteAccidental]}<sub>{calculatedNoteOctave}</sub>
+        <input
+          id="hidden-overlay-slider" className="vertical-note-slider"
+          tabIndex={-1} aria-hidden type='range'
+          min='-14' max='20' step='1'
+          value={noteLocation} onChange={handleNoteLocationChange}
+        />
+        <input
+          id="visible-note-slider" className="vertical-note-slider"
+          type='range' min='-14' max='20' step='1'
+          value={noteLocation} onChange={handleNoteLocationChange}
+        />
       </div>
       <div className='note-controls'>
         <div className='note-controls-location'>
@@ -258,9 +276,11 @@ function App() {
             <option value='n'>Natural</option>
           </select>
         </div>
-
       </div>
       <div className='play-pitch'>
+        <div className='note-name'>
+          Note Name: {calculatedNote}{accidentalToDisplayCharacter[calculatedNoteAccidental]}<sub>{calculatedNoteOctave}</sub>
+        </div>
         <button onClick={handlePlayButtonClick}>Play Pitch</button>
       </div>
     </>

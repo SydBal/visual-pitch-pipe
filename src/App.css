@@ -22,12 +22,19 @@
   }
 }
 
-#hidden-note-slider {
+
+
+.vertical-note-slider {
   position: absolute;
   bottom: -3px;
-  left: 50%;
+  right: 0%;
   width: 185px;
   transform:rotate(-90deg);
   transform-origin: left center;
+  
+}
+
+#hidden-overlay-slider {
   opacity: 0;
+  left: 50%;
 }

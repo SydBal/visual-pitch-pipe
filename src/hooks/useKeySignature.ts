@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import KeySignatureMapping from '../data/keySignatureMapping';
-import accidentalTypeToCharacterMapping from '../data/accidentalTypeToCharacterMapping';
+import accidentalToDisplayCharacter from '../data/accidentalToDisplayCharacter';
 import type { KeySignatureAccidental, KeySignatureAccidentalCount } from '../types/musicTypes';
 
 export function useKeySignature(keySignatureAccidentalType: KeySignatureAccidental, numberOfKeySignatureAccidentals: KeySignatureAccidentalCount) {
@@ -10,7 +10,7 @@ export function useKeySignature(keySignatureAccidentalType: KeySignatureAccident
 
   const keySignatureDisplayString = useMemo(() => {
     let displayString = keySignature;
-    Object.entries(accidentalTypeToCharacterMapping).forEach(([accidentalKey, accidentalCharacter]) => {
+    Object.entries(accidentalToDisplayCharacter).forEach(([accidentalKey, accidentalCharacter]) => {
       displayString = displayString.replace(accidentalKey, accidentalCharacter);
     });
     return displayString;
