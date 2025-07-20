@@ -1,6 +1,5 @@
 import { useMemo } from 'react';
 import keySignatureToAccidentalledNotes from '../data/keySignatureToAccidentalledNotes';
-import accidentalTypeToCharacterMapping from '../data/accidentalTypeToCharacterMapping';
 import type { ClefType, NoteAccidental, KeySignatureAccidental } from '../types/musicTypes';
 
 export function useCalculatedNote(
@@ -19,14 +18,14 @@ export function useCalculatedNote(
       noteAccidentalType === 'none' &&
       keySignatureToAccidentalledNotes[keySignature].includes(noteOctaveTuple[0])
     ) {
-      noteAccidental = accidentalTypeToCharacterMapping[keySignatureAccidentalType === 'sharp' ? '#' : 'b'];
+      noteAccidental = keySignatureAccidentalType === 'sharp' ? '#' : 'b';
     } else {
-      noteAccidental = accidentalTypeToCharacterMapping[noteAccidentalType];
+      noteAccidental = noteAccidentalType;
     }
     return {
       note: noteOctaveTuple[0],
       octave: noteOctaveTuple[1],
-      accidental: noteAccidental,
+      accidental: noteAccidental as NoteAccidental,
     };
   }, [clef, noteLocationName, noteAccidentalType, keySignature, keySignatureAccidentalType]);
 }

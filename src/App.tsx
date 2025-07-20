@@ -3,7 +3,7 @@ import { Renderer, Stave, StaveNote, Formatter, Accidental, Beam } from 'vexflow
 import { usePitchPipeState } from './hooks/usePitchPipeState';
 import KeySignatureMapping from './data/keySignatureMapping';
 import KeySignatureDropdown from './components/KeySignatureDropdown';
-import characterToAccidentalType from './data/characterToAccidentalType';
+import accidentalTypeToCharacterMapping from './data/accidentalTypeToCharacterMapping';
 import { playNote } from './audio/note';
 import type { StaffPosition, NoteAccidental, ClefType, KeySignatureAccidentalCount, KeySignatureAccidental, KeySignatureName } from './types/musicTypes';
 import './App.css'
@@ -96,7 +96,7 @@ function App() {
   const handlePlayButtonClick = () => {
     // Compose note name with accidental using the mapping
     let noteName = calculatedNote;
-    const accidentalSymbol = characterToAccidentalType[calculatedNoteAccidental] || '';
+    const accidentalSymbol = calculatedNoteAccidental || '';
     if (accidentalSymbol === '#' || accidentalSymbol === 'b') {
       noteName += accidentalSymbol;
     }
@@ -236,16 +236,16 @@ function App() {
         <input id="hidden-note-slider" aria-hidden type='range' min='-14' max='20' step='1' value={noteLocation} onChange={handleNoteLocationChange} />
       </div>
       <div className='note-name'>
-        Note Name: {calculatedNote}{calculatedNoteAccidental}<sub>{calculatedNoteOctave}</sub>
+        Note Name: {calculatedNote}{accidentalTypeToCharacterMapping[calculatedNoteAccidental]}<sub>{calculatedNoteOctave}</sub>
       </div>
       <div className='note-controls'>
         <div className='note-controls-location'>
-          <label>Note Location:</label>
+          <label>Move Note:</label>
           <button onClick={handleNoteUp}>Up</button>
           <button onClick={handleNoteDown}>Down</button>
         </div>
         <div className='note-controls-octave'>
-          <label>Octave:</label>
+          <label>Change Octave:</label>
           <button onClick={handleOctaveUp}>Up</button>
           <button onClick={handleOctaveDown}>Down</button>
         </div>
