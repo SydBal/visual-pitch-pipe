@@ -18,6 +18,7 @@
 
 .stave-container {
   position: relative;
+  min-width: 260px;
 }
 
 #stave-visualization svg {
@@ -51,4 +52,19 @@
 
 #play-button {
   font-size: 1.4rem;
+}
+
+.responsive-controls-container {
+  display: flex;
+  flex-direction: column;
+}
+
+@media screen and (min-width:  768px) {
+  .responsive-controls-container {
+    flex-direction: row;
+    gap: 1rem;
+    & > * {
+      flex: 1;
+    }
+  }
 }

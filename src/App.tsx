@@ -206,78 +206,82 @@ function App() {
   return (
     <>
       <h1>Visual Pitch Pipe</h1>
-      <div className='clef-controls'>
-        <label>Cleft:</label>
-        <select defaultValue='treble' onChange={handleClefChange}>
-          <option value='treble'>Treble</option>
-          <option value='bass'>Bass</option>
-          <option value='alto'>Alto</option>
-          <option value='tenor'>Tenor</option>
-        </select>
-      </div>
-      <div className="key-signature-controls">
-        <div className='key-signature-controls-key'>
-          <label>Key:</label>
-          <KeySignatureDropdown value={keySignature} onChange={handleKeySignatureChange} />
+      <div className='responsive-controls-container'>
+        <div className='left-controls'>
+          <div className='clef-controls'>
+            <label>Cleft:</label>
+            <select defaultValue='treble' onChange={handleClefChange}>
+              <option value='treble'>Treble</option>
+              <option value='bass'>Bass</option>
+              <option value='alto'>Alto</option>
+              <option value='tenor'>Tenor</option>
+            </select>
+          </div>
+          <div className="key-signature-controls">
+            <div className='key-signature-controls-key'>
+              <label>Key:</label>
+              <KeySignatureDropdown value={keySignature} onChange={handleKeySignatureChange} />
+            </div>
+            <div className='key-signature-controls-number-of-accidentals'>
+              <label>Key Signature Number of Accidentals:</label>
+              <select value={numberOfKeySignatureAccidentals} onChange={handleKeySignatureNumberOfAccidentalsChange}>
+                <option value='0'>0</option>
+                <option value='1'>1</option>
+                <option value='2'>2</option>
+                <option value='3'>3</option>
+                <option value='4'>4</option>
+                <option value='5'>5</option>
+                <option value='6'>6</option>
+                <option value='7'>7</option>
+              </select>
+            </div>
+            <div className='key-signature-controls-accidental-type'>
+              <label>Key Signature Accidental Type:</label>
+              <select value={keySignatureAccidentalType} onChange={handleKeySignatureAccientalTypeChange}>
+                <option value='sharp'>Sharp</option>
+                <option value='flat'>Flat</option>
+              </select>
+            </div>
+          </div>
         </div>
-        <div className='key-signature-controls-number-of-accidentals'>
-          <label>Key Signature Number of Accidentals:</label>
-          <select value={numberOfKeySignatureAccidentals} onChange={handleKeySignatureNumberOfAccidentalsChange}>
-            <option value='0'>0</option>
-            <option value='1'>1</option>
-            <option value='2'>2</option>
-            <option value='3'>3</option>
-            <option value='4'>4</option>
-            <option value='5'>5</option>
-            <option value='6'>6</option>
-            <option value='7'>7</option>
-          </select>
+        <div className='stave-container'>
+          <div ref={containerRef} id='stave-visualization' style={{ height: defaultStaveHeight }}></div>
+          {/* 
+            The range is set from -14 to 20 to match the NoteLocationMapping keys.
+            Adjusted the max value to 20 to match the highest note in the mapping to prevent overflow.
+          */}
+          <input
+            id="hidden-overlay-slider" className="vertical-note-slider"
+            tabIndex={-1} aria-hidden type='range'
+            min='-14' max='20' step='1'
+            value={noteLocation} onChange={handleNoteLocationChange}
+          />
+          <input
+            id="visible-note-slider" className="vertical-note-slider"
+            type='range' min='-14' max='20' step='1'
+            value={noteLocation} onChange={handleNoteLocationChange}
+          />
         </div>
-        <div className='key-signature-controls-accidental-type'>
-          <label>Key Signature Accidental Type:</label>
-          <select value={keySignatureAccidentalType} onChange={handleKeySignatureAccientalTypeChange}>
-            <option value='sharp'>Sharp</option>
-            <option value='flat'>Flat</option>
-          </select>
-        </div>
-      </div>
-      <div className='stave-container'>
-        <div ref={containerRef} id='stave-visualization' style={{ height: defaultStaveHeight }}></div>
-        {/* 
-          The range is set from -14 to 20 to match the NoteLocationMapping keys.
-          Adjusted the max value to 20 to match the highest note in the mapping to prevent overflow.
-        */}
-        <input
-          id="hidden-overlay-slider" className="vertical-note-slider"
-          tabIndex={-1} aria-hidden type='range'
-          min='-14' max='20' step='1'
-          value={noteLocation} onChange={handleNoteLocationChange}
-        />
-        <input
-          id="visible-note-slider" className="vertical-note-slider"
-          type='range' min='-14' max='20' step='1'
-          value={noteLocation} onChange={handleNoteLocationChange}
-        />
-      </div>
-      <div className='note-controls'>
-        <div className='note-controls-location'>
-          <label>Move Note:</label>
-          <button onClick={handleNoteUp}>Up</button>
-          <button onClick={handleNoteDown}>Down</button>
-        </div>
-        <div className='note-controls-octave'>
-          <label>Change Octave:</label>
-          <button onClick={handleOctaveUp}>Up</button>
-          <button onClick={handleOctaveDown}>Down</button>
-        </div>
-        <div className='note-controls-accidental'>
-          <label>Note Accidental:</label>
-          <select defaultValue='none' onChange={handleNoteAccidentalChange}>
-            <option value='none'>None</option>
-            <option value='#'>Sharp</option>
-            <option value='b'>Flat</option>
-            <option value='n'>Natural</option>
-          </select>
+        <div className='note-controls'>
+          <div className='note-controls-location'>
+            <label>Move Note:</label>
+            <button onClick={handleNoteUp}>Up</button>
+            <button onClick={handleNoteDown}>Down</button>
+          </div>
+          <div className='note-controls-octave'>
+            <label>Change Octave:</label>
+            <button onClick={handleOctaveUp}>Up</button>
+            <button onClick={handleOctaveDown}>Down</button>
+          </div>
+          <div className='note-controls-accidental'>
+            <label>Note Accidental:</label>
+            <select defaultValue='none' onChange={handleNoteAccidentalChange}>
+              <option value='none'>None</option>
+              <option value='#'>Sharp</option>
+              <option value='b'>Flat</option>
+              <option value='n'>Natural</option>
+            </select>
+          </div>
         </div>
       </div>
       <div className='play-pitch'>
