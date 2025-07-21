@@ -1,2 +1,2 @@
 - move slider to the right so thumb doesnt cover staff when sliding
-- ping/play/pause button for sound, allowing using to change note while playing
+- ping/play/pause button for sound, allowing using to change note while playing, until paused

@@ -200,7 +200,7 @@ function App() {
     noteAccidentalType,
     numberOfKeySignatureAccidentals,
     keySignatureAccidentalType,
-    windowSize // now using windowSize
+    windowSize
   ]);
 
   return (
