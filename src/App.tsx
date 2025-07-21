@@ -280,16 +280,26 @@ function App() {
               <option value='#'>Sharp</option>
               <option value='b'>Flat</option>
               <option value='n'>Natural</option>
-            </select>
+            </select>*
           </div>
         </div>
       </div>
       <div className='play-pitch'>
         <div className='note-name'>
-          Note Name: <span className='note-name-display'>{calculatedNote}{accidentalToDisplayCharacter[calculatedNoteAccidental]}<sub>{calculatedNoteOctave}</sub></span>
+          Note Name:<span className='note-name-display'>{calculatedNote}{accidentalToDisplayCharacter[calculatedNoteAccidental]}<sub>{calculatedNoteOctave}</sub></span>
         </div>
         <button id="play-button" onClick={handlePlayButtonClick}>Play Pitch</button>
       </div>
+      <div className='foot-note'>
+        <p>
+          *In sheet music, accidentals applied to notes also apply to following notes in the same position until the end of the measure or until another accidental is applied.
+        </p>
+      </div>
+      <footer>
+        <p>
+          Made with ❤️ by Dominic Balassone to solve my own problem of finding my pitch in choir practice.
+        </p> 
+      </footer>
     </>
   )
 }
