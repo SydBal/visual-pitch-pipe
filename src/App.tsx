@@ -286,7 +286,7 @@ function App() {
       </div>
       <div className='play-pitch'>
         <div className='note-name'>
-          Note Name: {calculatedNote}{accidentalToDisplayCharacter[calculatedNoteAccidental]}<sub>{calculatedNoteOctave}</sub>
+          Note Name: <span className='note-name-display'>{calculatedNote}{accidentalToDisplayCharacter[calculatedNoteAccidental]}<sub>{calculatedNoteOctave}</sub></span>
         </div>
         <button id="play-button" onClick={handlePlayButtonClick}>Play Pitch</button>
       </div>

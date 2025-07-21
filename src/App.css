@@ -54,17 +54,12 @@
   font-size: 1.4rem;
 }
 
-.responsive-controls-container {
-  display: flex;
-  flex-direction: column;
-}
-
-@media screen and (min-width:  768px) {
-  .responsive-controls-container {
-    flex-direction: row;
-    gap: 1rem;
-    & > * {
-      flex: 1;
-    }
-  }
+.note-name-display {
+  font-weight: bold;
+  padding: 0.5rem;
+  display: inline-block;
+  border: 1px solid #646cff;
+  border-radius: 4px;
+  margin-left: 10px;
+  width: 2rem;
 }
