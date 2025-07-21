@@ -66,6 +66,14 @@
   border-radius: 4px;
   margin-left: 6px;
   min-width: 2rem;
+  background: #1a1a1a;
+}
+
+@media (prefers-color-scheme: light) {
+  .note-name-display {
+    background-color: #f9f9f9;
+    color: black;
+  }
 }
 
 .foot-note {
