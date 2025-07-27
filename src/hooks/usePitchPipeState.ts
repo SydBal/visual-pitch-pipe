@@ -12,7 +12,7 @@ import type {
 
 export function usePitchPipeState() {
   const [noteLocation, setNoteLocation] = useState<StaffPosition>('0');
-  const [noteAccidentalType, setNoteAccidentalType] = useState<NoteAccidental>('none');
+  const [noteAccidentalType, setNoteAccidentalType] = useState<NoteAccidental>('');
   const [clef, setClef] = useState<ClefType>('treble');
   const [numberOfKeySignatureAccidentals, setNumberOfKeySignatureAccidentals] = useState<KeySignatureAccidentalCount>('0');
   const [keySignatureAccidentalType, setKeySignatureAccidentalType] = useState<KeySignatureAccidental>('sharp');

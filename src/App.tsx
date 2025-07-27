@@ -99,9 +99,7 @@ function App() {
     // Compose note name with accidental using the mapping
     let noteName = calculatedNote;
     const accidentalSymbol = calculatedNoteAccidental || '';
-    if (accidentalSymbol === '#' || accidentalSymbol === 'b') {
-      noteName += accidentalSymbol;
-    }
+    if (accidentalSymbol) noteName += accidentalSymbol;
     const octave = parseInt(calculatedNoteOctave);
     playNote(noteName, octave);
   };
@@ -143,8 +141,8 @@ function App() {
         duration: 'q',
       });
 
-      // Add the accidental to the note if it is not 'none'
-      if (noteAccidentalType !== 'none') {
+      // Add the accidental to the note if it is not ''
+      if (noteAccidentalType !== '') {
         note.addModifier(new Accidental(noteAccidentalType));
       }
 
@@ -191,7 +189,7 @@ function App() {
         // plus half of the stave width
         + (paddedNoteRightEdgeX / 2)
         // plus a few pixels to give some padding
-        + 20
+        + 50
       )}px`;
     }
   }, [
@@ -275,8 +273,8 @@ function App() {
           </div>
           <div className='note-controls-accidental'>
             <label>Note Accidental:</label>
-            <select defaultValue='none' onChange={handleNoteAccidentalChange}>
-              <option value='none'>None</option>
+            <select defaultValue='' onChange={handleNoteAccidentalChange}>
+              <option value=''>None</option>
               <option value='#'>Sharp</option>
               <option value='b'>Flat</option>
               <option value='n'>Natural</option>
@@ -286,7 +284,9 @@ function App() {
       </div>
       <div className='play-pitch'>
         <div className='note-name'>
-          Note Name:<span className='note-name-display'>{calculatedNote}{accidentalToDisplayCharacter[calculatedNoteAccidental]}<sub>{calculatedNoteOctave}</sub></span>
+          Note Name:<span className='note-name-display'>
+            {calculatedNote}{accidentalToDisplayCharacter[calculatedNoteAccidental]}<sub>{calculatedNoteOctave}</sub>
+          </span>
         </div>
         <button id="play-button" onClick={handlePlayButtonClick}>Play Pitch</button>
       </div>

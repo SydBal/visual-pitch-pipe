@@ -15,7 +15,7 @@ export function useCalculatedNote(
     if (noteAccidentalType === 'n') {
       noteAccidental = '';
     } else if (
-      noteAccidentalType === 'none' &&
+      noteAccidentalType === '' &&
       keySignatureToAccidentalledNotes[keySignature].includes(noteOctaveTuple[0])
     ) {
       noteAccidental = keySignatureAccidentalType === 'sharp' ? '#' : 'b';
