@@ -211,6 +211,13 @@
   gap: 0.6rem;
 }
 
+.cam-key-big {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 0.1rem;
+}
+
 /* Intro / error states, centered on the fullscreen takeover */
 .cam-intro {
   position: absolute;
