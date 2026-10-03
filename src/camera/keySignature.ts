@@ -30,6 +30,36 @@ export interface KeySignatureDetection {
   glyphs: DetectedGlyph[];
 }
 
+/** Rectangular detection region in analysis-image coordinates. */
+export interface KeySignatureROI {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+/**
+ * Build a detection ROI around a tap point: wide enough for a full key
+ * signature, vertically centered on the staff at the tap's x (handles skew).
+ */
+export function keyTapROI(
+  tapX: number,
+  staff: StaffFit,
+  width: number,
+  height: number
+): KeySignatureROI {
+  const space = staff.staffSpace;
+  const halfW = Math.max(80, space * 4.5);
+  const topY = staff.lines[0].slope * tapX + staff.lines[0].intercept;
+  const bottomY = staff.lines[4].slope * tapX + staff.lines[4].intercept;
+  return {
+    x0: Math.max(0, Math.round(tapX - halfW)),
+    y0: Math.max(0, Math.round(Math.min(topY, bottomY) - space * 3)),
+    x1: Math.min(width, Math.round(tapX + halfW)),
+    y1: Math.min(height, Math.round(Math.max(topY, bottomY) + space * 3)),
+  };
+}
+
 interface Component {
   minX: number;
   minY: number;
@@ -205,15 +235,27 @@ export function detectKeySignature(
   binary: Uint8ClampedArray,
   width: number,
   height: number,
-  staff: StaffFit
+  staff: StaffFit,
+  roi?: KeySignatureROI
 ): KeySignatureDetection {
   const space = staff.staffSpace;
-  const topY = staff.lines[0].intercept;
-  const bottomY = staff.lines[4].intercept;
-  const x0 = Math.max(0, Math.round(width * 0.03));
-  const x1 = Math.min(width, Math.round(width * 0.5));
-  const y0 = Math.max(0, Math.round(Math.min(topY, bottomY) - space * 2.5));
-  const y1 = Math.min(height, Math.round(Math.max(topY, bottomY) + space * 2.5));
+  let x0: number;
+  let y0: number;
+  let x1: number;
+  let y1: number;
+  if (roi) {
+    x0 = Math.max(0, Math.min(width - 1, Math.round(roi.x0)));
+    y0 = Math.max(0, Math.min(height - 1, Math.round(roi.y0)));
+    x1 = Math.max(x0 + 1, Math.min(width, Math.round(roi.x1)));
+    y1 = Math.max(y0 + 1, Math.min(height, Math.round(roi.y1)));
+  } else {
+    const topY = staff.lines[0].intercept;
+    const bottomY = staff.lines[4].intercept;
+    x0 = Math.max(0, Math.round(width * 0.03));
+    x1 = Math.min(width, Math.round(width * 0.5));
+    y0 = Math.max(0, Math.round(Math.min(topY, bottomY) - space * 2.5));
+    y1 = Math.min(height, Math.round(Math.max(topY, bottomY) + space * 2.5));
+  }
 
   // Work on a copy: eraseStaffLines mutates.
   const work = new Uint8ClampedArray(binary);
