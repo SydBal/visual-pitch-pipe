@@ -1,6 +1,7 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { Renderer, Stave, StaveNote, Formatter, Accidental, Beam } from 'vexflow';
 import { usePitchPipeState } from './hooks/usePitchPipeState';
+import CameraMode from './camera/CameraMode';
 import KeySignatureMapping from './data/keySignatureMapping';
 import KeySignatureDropdown from './components/KeySignatureDropdown';
 import accidentalToDisplayCharacter from './data/accidentalToDisplayCharacter';
@@ -26,6 +27,7 @@ function App() {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const windowSize = useResize();
+  const [mode, setMode] = useState<'manual' | 'camera'>('manual');
 
   const handleNoteLocationChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setNoteLocation(event.target.value as StaffPosition);
@@ -204,6 +206,28 @@ function App() {
   return (
     <>
       <h1>Visual Pitch Pipe</h1>
+      <div className='mode-tabs' role='tablist' aria-label='Input mode'>
+        <button
+          role='tab'
+          aria-selected={mode === 'manual'}
+          className={mode === 'manual' ? 'active' : ''}
+          onClick={() => setMode('manual')}
+        >
+          Manual
+        </button>
+        <button
+          role='tab'
+          aria-selected={mode === 'camera'}
+          className={mode === 'camera' ? 'active' : ''}
+          onClick={() => setMode('camera')}
+        >
+          Camera
+        </button>
+      </div>
+      {mode === 'camera' ? (
+        <CameraMode onExitToManual={() => setMode('manual')} />
+      ) : (
+      <>
       <div className='responsive-controls-container'>
         <div className='left-controls'>
           <div className='clef-controls'>
@@ -300,6 +324,8 @@ function App() {
           Made with ❤️ by Dominic Balassone to solve my own problem of finding my pitch in choir practice.
         </p> 
       </footer>
+      </>
+      )}
     </>
   )
 }
