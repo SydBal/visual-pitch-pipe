@@ -11,7 +11,10 @@ export interface CameraControls {
 
 /**
  * Manages a getUserMedia video stream, preferring the rear camera.
- * The caller renders <video ref={videoRef} playsInline muted />.
+ *
+ * The <video> element only mounts once status flips to 'live', so the stream
+ * is attached in an effect after mount — attaching it inside start() races
+ * the render and leaves the preview black.
  */
 export function useCamera(): CameraControls {
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -41,11 +44,6 @@ export function useCamera(): CameraControls {
         audio: false,
       });
       streamRef.current = stream;
-      const video = videoRef.current;
-      if (video) {
-        video.srcObject = stream;
-        await video.play();
-      }
       setStatus('live');
     } catch (err) {
       if (err instanceof DOMException && err.name === 'NotAllowedError') {
@@ -55,6 +53,16 @@ export function useCamera(): CameraControls {
       }
     }
   }, []);
+
+  // Attach the stream once the video element exists.
+  useEffect(() => {
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (status === 'live' && video && stream) {
+      video.srcObject = stream;
+      video.play().catch(() => undefined);
+    }
+  }, [status]);
 
   useEffect(() => {
     return () => {
