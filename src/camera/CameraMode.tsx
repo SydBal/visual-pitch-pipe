@@ -291,6 +291,10 @@ export default function CameraMode({ onExitToManual }: Props) {
     const tick = () => {
       const video = videoRef.current;
       if (!video || video.readyState < 2 || video.videoWidth === 0) return;
+      // If the stream attached but playback stalled, nudge it along.
+      if (video.paused && video.srcObject) {
+        video.play().catch(() => undefined);
+      }
       const vw = video.videoWidth;
       const vh = video.videoHeight;
       const ah = Math.round((ANALYSIS_WIDTH * vh) / vw);
@@ -389,6 +393,7 @@ export default function CameraMode({ onExitToManual }: Props) {
 
   if (status === 'idle' || status === 'requesting') {
     return (
+      <div className="cam-fullscreen">
       <div className="cam-intro">
         <h2>Camera mode</h2>
         <p>
@@ -409,11 +414,13 @@ export default function CameraMode({ onExitToManual }: Props) {
         )}
         <p className="cam-fineprint">Everything is processed on your device. No photos leave your phone.</p>
       </div>
+      </div>
     );
   }
 
   if (status === 'denied' || status === 'unavailable') {
     return (
+      <div className="cam-fullscreen">
       <div className="cam-intro">
         <h2>Camera unavailable</h2>
         <p>
@@ -432,10 +439,12 @@ export default function CameraMode({ onExitToManual }: Props) {
           </button>
         </div>
       </div>
+      </div>
     );
   }
 
   return (
+    <div className="cam-fullscreen">
     <div className="cam-root" ref={containerRef}>
       <video ref={videoRef} playsInline muted disablePictureInPicture className="cam-video" />
       <canvas
@@ -446,9 +455,21 @@ export default function CameraMode({ onExitToManual }: Props) {
       {tapMarker && <div key={tapMarker.id} className="cam-tap" style={{ left: tapMarker.x, top: tapMarker.y }} />}
 
       <div className="cam-topbar">
-        <button className="cam-keychip" onClick={() => setShowKeyEditor(true)} title="Key signature">
-          {phase === 'scanning' ? 'Finding key…' : `${keyDisplay}${keySource === 'manual' ? ' ✎' : ''}`}
-        </button>
+        <div className="cam-topbar-row">
+          <button className="cam-keychip" onClick={() => setShowKeyEditor(true)} title="Key signature">
+            {phase === 'scanning' ? 'Finding key…' : `${keyDisplay}${keySource === 'manual' ? ' ✎' : ''}`}
+          </button>
+          <button
+            className="cam-close"
+            onClick={() => {
+              stop();
+              onExitToManual();
+            }}
+            aria-label="Exit camera mode"
+          >
+            ✕
+          </button>
+        </div>
         <div className="cam-clefseg" role="group" aria-label="Clef">
           {CLEFS.map((c) => (
             <button
@@ -460,16 +481,6 @@ export default function CameraMode({ onExitToManual }: Props) {
             </button>
           ))}
         </div>
-        <button
-          className="cam-close"
-          onClick={() => {
-            stop();
-            onExitToManual();
-          }}
-          aria-label="Exit camera mode"
-        >
-          ✕
-        </button>
       </div>
 
       {(phase === 'ready' || phase === 'playing') && lastResult && (
@@ -524,6 +535,7 @@ export default function CameraMode({ onExitToManual }: Props) {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }
