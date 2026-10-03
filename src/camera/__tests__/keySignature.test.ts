@@ -1,15 +1,22 @@
 /**
- * Unit tests for src/camera/keySignature.ts.
+ * Unit tests for src/camera/keySignature.ts (tap-ROI pipeline).
  *
  * Draws synthetic sharp/flat glyphs on a synthetic staff, then checks
- * classification and counting. Compile + run:
+ * classification, counting, and the staff geometry recovered from the
+ * tap region. Compile + run:
  *   npx tsc src/camera/geometry.ts src/camera/keySignature.ts \
  *     src/camera/__tests__/keySignature.test.ts \
  *     --outDir /tmp/camtest --module commonjs --target es2022 --strict --skipLibCheck
  *   node /tmp/camtest/__tests__/keySignature.test.js
  */
-import { binarize, detectStaff, renderSyntheticStaff } from '../geometry';
-import { detectKeySignature, keyTapROI } from '../keySignature';
+import { binarize, renderSyntheticStaff } from '../geometry';
+import {
+  detectKeySignature,
+  detectStaffGeometry,
+  isOnStaff,
+  keyTapROI,
+  staffPositionAt,
+} from '../keySignature';
 
 const failures: string[] = [];
 
@@ -38,97 +45,150 @@ function drawSharp(gray: Uint8ClampedArray, width: number, height: number, x: nu
   }
 }
 
-/** Tall vertical bar + filled bulb, ~2.8 staff spaces tall. */
+/** Tall vertical stem + filled bulb, ~2.8 staff spaces tall. */
 function drawFlat(gray: Uint8ClampedArray, width: number, height: number, x: number, y0: number, space: number): void {
   const h = Math.round(space * 2.8);
   for (let y = y0; y < y0 + h; y++) {
     for (let dx = 0; dx < 3; dx++) setPx(gray, width, height, x + dx, y);
   }
-  const cx = x + 4;
-  const cy = y0 + h - 14;
-  const rx = 7;
-  const ry = 12;
-  for (let yy = cy - ry; yy <= cy + ry; yy++) {
-    for (let xx = cx - rx; xx <= cx + rx; xx++) {
-      const nx = (xx - cx) / rx;
-      const ny = (yy - cy) / ry;
-      if (nx * nx + ny * ny <= 1) setPx(gray, width, height, xx, yy);
-    }
+  const bulbH = Math.round(h * 0.45);
+  const bulbW = Math.round(space * 0.7);
+  const by0 = y0 + h - bulbH;
+  for (let yy = by0; yy < y0 + h; yy++) {
+    const t = (yy - by0) / Math.max(1, bulbH - 1);
+    const wdt = Math.round(bulbW * Math.sin(Math.PI * Math.min(1, Math.max(0, t))));
+    for (let xx = x - wdt; xx <= x + 3; xx++) setPx(gray, width, height, xx, yy);
   }
 }
 
-function setup(draw: (gray: Uint8ClampedArray, width: number, height: number, space: number) => void) {
-  const space = 24;
-  const { gray, width, height } = renderSyntheticStaff({ topY: 120, staffSpace: space, slope: 0 });
-  draw(gray, width, height, space);
-  const binary = binarize(gray, width, height);
-  const staff = detectStaff(binary, width, height);
-  if (!staff) throw new Error('staff not detected in key-signature test setup');
-  return { binary, width, height, staff, space };
+function setup(
+  opts: { glyphs?: ('sharp' | 'flat')[]; space?: number; slope?: number; noise?: number } = {}
+): { binary: Uint8ClampedArray; width: number; height: number } {
+  const space = opts.space ?? 24;
+  const { gray, width, height } = renderSyntheticStaff({
+    width: 640,
+    height: 480,
+    topY: 120,
+    staffSpace: space,
+    slope: opts.slope ?? 0,
+    thickness: 3,
+    noise: opts.noise ?? 0,
+  });
+  const glyphs = opts.glyphs ?? [];
+  glyphs.forEach((kind, i) => {
+    const x = 150 + i * Math.round(space * 1.4);
+    // Center the glyph vertically on the staff region.
+    const y0 = 120 + Math.round(space * 1.2);
+    if (kind === 'sharp') drawSharp(gray, width, height, x, y0, space);
+    else drawFlat(gray, width, height, x, y0, space);
+  });
+  return { binary: binarize(gray, width, height), width, height };
 }
 
-// 1. Three sharps -> { type: 'sharp', count: 3 }.
+// 1. Three sharps: type, count, and geometry from the tap region.
 {
-  const { binary, width, height, staff } = setup((gray, w, h, sp) => {
-    drawSharp(gray, w, h, 100, 130, sp);
-    drawSharp(gray, w, h, 145, 130, sp);
-    drawSharp(gray, w, h, 190, 130, sp);
-  });
-  const det = detectKeySignature(binary, width, height, staff);
+  const { binary, width, height } = setup({ glyphs: ['sharp', 'sharp', 'sharp'] });
+  const roi = keyTapROI(170, 150, width, height);
+  const det = detectKeySignature(binary, width, height, roi);
   check('3 sharps: type', det.type === 'sharp', `got ${det.type}`);
   check('3 sharps: count', det.count === 3, `got ${det.count}`);
-  check('3 sharps: confidence', det.confidence > 0.5, `got ${det.confidence}`);
+  check('3 sharps: geometry found', det.geometry !== null);
+  if (det.geometry) {
+    check('3 sharps: staffSpace', Math.abs(det.geometry.staffSpace - 24) < 2, `got ${det.geometry.staffSpace}`);
+    check('3 sharps: yTop0', Math.abs(det.geometry.yTop0 - 120) < 4, `got ${det.geometry.yTop0}`);
+    check('3 sharps: skew', Math.abs(det.geometry.skew) < 0.01, `got ${det.geometry.skew}`);
+  }
 }
 
-// 2. Two flats -> { type: 'flat', count: 2 }.
+// 2. Two flats.
 {
-  const { binary, width, height, staff } = setup((gray, w, h, sp) => {
-    drawFlat(gray, w, h, 100, 130, sp);
-    drawFlat(gray, w, h, 150, 130, sp);
-  });
-  const det = detectKeySignature(binary, width, height, staff);
+  const { binary, width, height } = setup({ glyphs: ['flat', 'flat'] });
+  const roi = keyTapROI(160, 150, width, height);
+  const det = detectKeySignature(binary, width, height, roi);
   check('2 flats: type', det.type === 'flat', `got ${det.type}`);
   check('2 flats: count', det.count === 2, `got ${det.count}`);
+  check('2 flats: geometry found', det.geometry !== null);
 }
 
-// 3. No glyphs -> count 0 (reads as C major).
+// 3. No glyphs: C major, but geometry is still recovered from the lines.
 {
-  const { binary, width, height, staff } = setup(() => undefined);
-  const det = detectKeySignature(binary, width, height, staff);
-  check('empty: count 0', det.count === 0, `got ${det.count}`);
-  check('empty: some confidence', det.confidence > 0.2, `got ${det.confidence}`);
+  const { binary, width, height } = setup({});
+  const roi = keyTapROI(320, 150, width, height);
+  const det = detectKeySignature(binary, width, height, roi);
+  check('C major: count 0', det.count === 0, `got ${det.count}`);
+  check('C major: geometry found', det.geometry !== null);
+  if (det.geometry) {
+    check('C major: staffSpace', Math.abs(det.geometry.staffSpace - 24) < 2, `got ${det.geometry.staffSpace}`);
+  }
 }
 
-// 4. Mixed run breaks at the type change: sharp sharp flat -> count 2 sharps.
+// 4. Tapping away from the staff: no lines, no geometry.
 {
-  const { binary, width, height, staff } = setup((gray, w, h, sp) => {
-    drawSharp(gray, w, h, 100, 130, sp);
-    drawSharp(gray, w, h, 145, 130, sp);
-    drawFlat(gray, w, h, 195, 130, sp);
-  });
-  const det = detectKeySignature(binary, width, height, staff);
-  check('mixed: type sharp', det.type === 'sharp', `got ${det.type}`);
-  check('mixed: count 2', det.count === 2, `got ${det.count}`);
+  const { binary, width, height } = setup({ glyphs: ['sharp'] });
+  const roi = keyTapROI(500, 400, width, height);
+  const det = detectKeySignature(binary, width, height, roi);
+  check('tap away: count 0', det.count === 0, `got ${det.count}`);
+  check('tap away: no geometry', det.geometry === null);
 }
 
-// 5. Tap-driven ROI: tap on the glyphs detects them; tap elsewhere finds nothing.
+// 5. Skewed staff: skew is recovered in the tap region.
 {
-  const { binary, width, height, staff } = setup((gray, w, h, sp) => {
-    drawSharp(gray, w, h, 100, 130, sp);
-    drawSharp(gray, w, h, 145, 130, sp);
-  });
-  const onTap = keyTapROI(122, staff, width, height);
-  const detOn = detectKeySignature(binary, width, height, staff, onTap);
-  check('tap ROI on glyphs: 2 sharps', detOn.type === 'sharp' && detOn.count === 2,
-    `got ${detOn.type} x${detOn.count}`);
-  const offTap = keyTapROI(500, staff, width, height);
-  const detOff = detectKeySignature(binary, width, height, staff, offTap);
-  check('tap ROI away from glyphs: count 0', detOff.count === 0, `got ${detOff.count}`);
-  check('tap ROI is bounded', onTap.x0 >= 0 && onTap.y0 >= 0 && onTap.x1 <= width && onTap.y1 <= height);
+  const { binary, width, height } = setup({ glyphs: ['sharp', 'sharp'], slope: 0.03 });
+  const roi = keyTapROI(170, 150, width, height);
+  const det = detectKeySignature(binary, width, height, roi);
+  check('skewed: count', det.count === 2, `got ${det.count}`);
+  check('skewed: geometry found', det.geometry !== null);
+  if (det.geometry) {
+    check('skewed: skew', Math.abs(det.geometry.skew - 0.03) < 0.015, `got ${det.geometry.skew}`);
+    check('skewed: yTop0', Math.abs(det.geometry.yTop0 - 120) < 6, `got ${det.geometry.yTop0}`);
+  }
+}
+
+// 6. Scale independence: smaller staff still classifies.
+{
+  const { binary, width, height } = setup({ glyphs: ['sharp', 'sharp', 'flat', 'flat'], space: 16 });
+  const roi = keyTapROI(160, 140, width, height);
+  const det = detectKeySignature(binary, width, height, roi);
+  check('small staff: finds glyphs', det.count >= 2, `got ${det.count} ${det.type}`);
+  check('small staff: geometry', det.geometry !== null && Math.abs(det.geometry.staffSpace - 16) < 2,
+    `got ${det.geometry?.staffSpace}`);
+}
+
+// 7. detectStaffGeometry: fresh geometry at a note tap point.
+{
+  const { binary, width, height } = setup({ glyphs: ['sharp', 'sharp'] });
+  const geo = detectStaffGeometry(binary, width, height, 400, 150);
+  check('note tap: geometry found', geo !== null);
+  if (geo) {
+    check('note tap: top line maps to 7', Math.abs(staffPositionAt(geo, 400, 120) - 7) < 0.3,
+      `got ${staffPositionAt(geo, 400, 120)}`);
+    check('note tap: third space maps to 4', Math.abs(staffPositionAt(geo, 400, 120 + 3 * 12) - 4) < 0.3,
+      `got ${staffPositionAt(geo, 400, 120 + 3 * 12)}`);
+    check('note tap: on staff', isOnStaff(geo, 400, 150));
+    check('note tap: far above rejected', !isOnStaff(geo, 400, 0));
+  }
+}
+
+// 8. Noisy image: detection holds up.
+{
+  const { binary, width, height } = setup({ glyphs: ['sharp', 'sharp', 'sharp'], noise: 0.002 });
+  const roi = keyTapROI(170, 150, width, height);
+  const det = detectKeySignature(binary, width, height, roi);
+  check('noisy: count', det.count === 3, `got ${det.count}`);
+  check('noisy: geometry', det.geometry !== null);
+}
+
+// 9. ROI stays within the frame at the edges.
+{
+  const roi = keyTapROI(630, 470, 640, 480);
+  check('roi clamped', roi.x1 <= 640 && roi.y1 <= 480 && roi.x0 >= 0 && roi.y0 >= 0,
+    JSON.stringify(roi));
 }
 
 if (failures.length > 0) {
-  console.error(`\n${failures.length} FAILURE(S):\n- ${failures.join('\n- ')}`);
-  throw new Error('key-signature tests failed');
+  console.error(`\n${failures.length} FAILURE(S):`);
+  for (const f of failures) console.error(`  FAIL: ${f}`);
+  throw new Error(`${failures.length} test(s) failed`);
+} else {
+  console.log('\nAll key-signature tests passed.');
 }
-console.log('\nAll key-signature tests passed.');
