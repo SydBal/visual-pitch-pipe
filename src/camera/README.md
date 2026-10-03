@@ -8,18 +8,22 @@ Point the phone at sheet music, tap a note, hear the pitch.
 
 - **idle** — intro screen with the Enable camera button. Camera permission
   lives here, with designed fallbacks for denied/unavailable.
-- **scanning** — "Looking for key signature". The analysis loop fits the
-  staff, then votes on key-signature detections across frames. When 6+ of the
-  last 10 frames agree (>= 70% share), the key locks and the app advances.
-- **ready** — "Ready for note tap". Staff tracking keeps running so the
+- **key-tap** — screen 1: "Tap the key signature". Staff detection runs
+  continuously and draws the fitted lines; once a staff is found the user
+  taps where the sharps/flats are.
+- **key-reading** — detection runs on a region around the tap
+  (`keyTapROI`), voting across frames for robustness. The tap point, the ROI
+  box, and detected glyph boxes draw on the overlay.
+- **key-confirm** — the locked key is shown ("E♭ major · 3 flats") with
+  [Tap a note →] and [Re-tap]. Manual entry is available from the key chip.
+- **ready** — screen 2: "Tap a note". Staff tracking keeps running so the
   geometry follows a drifting hand. Taps map to a staff position through the
   existing note pipeline and `playNote`.
 - **playing** — the note sounds (reuses v1 audio verbatim) and the UI offers
   Replay plus -1/+1 step nudge, then melts back to ready after ~1.4s.
 
 Clef stays manual (segmented control). Per-note accidental is a manual
-override. The detected key signature can be re-scanned or overridden from
-the key chip.
+override. The key chip re-opens screen 1 or manual entry at any time.
 
 ## Pipeline (`geometry.ts`, `keySignature.ts`)
 
