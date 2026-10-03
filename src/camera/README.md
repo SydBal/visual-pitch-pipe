@@ -8,16 +8,16 @@ Point the phone at sheet music, tap a note, hear the pitch.
 
 - **idle** — intro screen with the Enable camera button. Camera permission
   lives here, with designed fallbacks for denied/unavailable.
-- **key-tap** — screen 1: "Tap the key signature". Staff detection runs
-  continuously and draws the fitted lines; once a staff is found the user
-  taps where the sharps/flats are.
-- **key-reading** — detection runs on a region around the tap
-  (`keyTapROI`), voting across frames for robustness. The tap point, the ROI
-  box, and detected glyph boxes draw on the overlay.
-- **key-confirm** — the locked key is shown ("E♭ major · 3 flats") with
-  [Tap a note →] and [Re-tap]. Manual entry is available from the key chip.
-- **ready** — screen 2: "Tap a note". Staff tracking keeps running so the
-  geometry follows a drifting hand. Taps map to a staff position through the
+- **key-tap** — screen 1: "Tap the key signature". No detection runs until
+  the user taps; the tap defines a small region of interest.
+- **key-reading** — detection runs inside the tap region (`keyTapROI`),
+  voting across frames for robustness. The tap point, the ROI box, and
+  detected glyph boxes draw on the overlay. On lock, the key flashes
+  ("E♭ major ✓") and the app moves straight to ready. If nothing locks in
+  ~5s, it falls back to key-tap with a hint.
+- **ready** — screen 2: "Tap a note". Each tap gets fresh staff geometry
+  from the lines around the tap point, so moving the phone between taps
+  never leaves a stale fit behind. Taps map to a staff position through the
   existing note pipeline and `playNote`.
 - **playing** — the note sounds (reuses v1 audio verbatim) and the UI offers
   Replay plus -1/+1 step nudge, then melts back to ready after ~1.4s.
@@ -32,15 +32,16 @@ run identically in the browser and in Node tests.
 
 1. Downscale the video frame to 640px wide, grayscale, adaptive binarize
    (integral-image local threshold).
-2. `detectStaff`: estimate global skew by projecting along sheared rows,
-   de-skew, find rows with long dark runs, merge into line centers, keep the
-   best window of 5 lines with consistent spacing, refine each line with
-   RANSAC least-squares. Returns 5 fitted lines + staff space + confidence.
-3. `detectKeySignature`: crop the left half of the staff, erase staff lines
-   except where vertical glyph strokes cross them, find connected components,
-   classify each as sharp (compact, two vertical strokes) or flat (tall,
-   single stroke), and take the longest leading uniform run. Count 0 with
-   moderate confidence reads as C major.
+2. `detectKeySignature` (key tap): inside the tap ROI, estimate skew by
+   projecting along sheared rows, find the five staff lines via row
+   projection, erase them except where vertical glyph strokes cross, find
+   connected components, and classify each as sharp (compact, two vertical
+   strokes) or flat (tall, narrow, at most one stroke) using scale-free
+   thresholds. The longest uniform run near the tap wins; count 0 with the
+   lines present reads as C major. The detected lines also yield the staff
+   geometry (top-line y at x=0, skew, staff space).
+3. `detectStaffGeometry` (note tap): same local line detection around the
+   note tap, fresh every time. No global staff tracker, no RANSAC.
 4. Tap -> staff position: `7 - 2 * round((tapY - topLineY) / staffSpace)`,
    clamped to [-14, 21]. Taps further than 3 staff spaces from the staff are
    rejected with a hint instead of playing a garbage pitch.
