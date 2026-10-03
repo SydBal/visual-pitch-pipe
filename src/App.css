@@ -80,3 +80,20 @@
   font-size: 0.8rem;
   opacity: 0.8;
 }
+
+.mode-tabs {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.mode-tabs button {
+  font-size: 1.05rem;
+  padding: 0.5em 1.6em;
+}
+
+.mode-tabs button.active {
+  background-color: #646cff;
+  color: #fff;
+}
