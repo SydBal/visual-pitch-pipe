@@ -9,7 +9,7 @@
  *   node /tmp/camtest/__tests__/keySignature.test.js
  */
 import { binarize, detectStaff, renderSyntheticStaff } from '../geometry';
-import { detectKeySignature } from '../keySignature';
+import { detectKeySignature, keyTapROI } from '../keySignature';
 
 const failures: string[] = [];
 
@@ -109,6 +109,22 @@ function setup(draw: (gray: Uint8ClampedArray, width: number, height: number, sp
   const det = detectKeySignature(binary, width, height, staff);
   check('mixed: type sharp', det.type === 'sharp', `got ${det.type}`);
   check('mixed: count 2', det.count === 2, `got ${det.count}`);
+}
+
+// 5. Tap-driven ROI: tap on the glyphs detects them; tap elsewhere finds nothing.
+{
+  const { binary, width, height, staff } = setup((gray, w, h, sp) => {
+    drawSharp(gray, w, h, 100, 130, sp);
+    drawSharp(gray, w, h, 145, 130, sp);
+  });
+  const onTap = keyTapROI(122, staff, width, height);
+  const detOn = detectKeySignature(binary, width, height, staff, onTap);
+  check('tap ROI on glyphs: 2 sharps', detOn.type === 'sharp' && detOn.count === 2,
+    `got ${detOn.type} x${detOn.count}`);
+  const offTap = keyTapROI(500, staff, width, height);
+  const detOff = detectKeySignature(binary, width, height, staff, offTap);
+  check('tap ROI away from glyphs: count 0', detOff.count === 0, `got ${detOff.count}`);
+  check('tap ROI is bounded', onTap.x0 >= 0 && onTap.y0 >= 0 && onTap.x1 <= width && onTap.y1 <= height);
 }
 
 if (failures.length > 0) {
