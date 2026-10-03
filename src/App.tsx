@@ -205,29 +205,28 @@ function App() {
 
   return (
     <>
+      {mode === 'camera' ? (
+        <CameraMode onExitToManual={() => setMode('manual')} />
+      ) : (
+      <>
       <h1>Visual Pitch Pipe</h1>
       <div className='mode-tabs' role='tablist' aria-label='Input mode'>
         <button
           role='tab'
-          aria-selected={mode === 'manual'}
-          className={mode === 'manual' ? 'active' : ''}
+          aria-selected={true}
+          className='active'
           onClick={() => setMode('manual')}
         >
           Manual
         </button>
         <button
           role='tab'
-          aria-selected={mode === 'camera'}
-          className={mode === 'camera' ? 'active' : ''}
+          aria-selected={false}
           onClick={() => setMode('camera')}
         >
           Camera
         </button>
       </div>
-      {mode === 'camera' ? (
-        <CameraMode onExitToManual={() => setMode('manual')} />
-      ) : (
-      <>
       <div className='responsive-controls-container'>
         <div className='left-controls'>
           <div className='clef-controls'>
