@@ -11,16 +11,21 @@ import {
 } from '../utils/keySignatureName';
 import {
   binarize,
-  detectStaff,
   frameDifference,
   grayscale,
-  isOnStaff,
   meanBrightness,
   quantizeStaffPosition,
-  staffPositionAt,
-  type StaffFit,
 } from './geometry';
-import { detectKeySignature, keyTapROI, type KeySignatureROI } from './keySignature';
+import {
+  detectKeySignature,
+  detectStaffGeometry,
+  isOnStaff,
+  keyTapROI,
+  staffPositionAt,
+  type DetectedGlyph,
+  type KeySignatureROI,
+  type StaffGeometry,
+} from './keySignature';
 import { useCamera } from './useCamera';
 import type {
   ClefType,
@@ -31,13 +36,14 @@ import type {
 } from '../types/musicTypes';
 import './CameraMode.css';
 
-type Phase = 'idle' | 'key-tap' | 'key-reading' | 'key-confirm' | 'ready' | 'playing';
+type Phase = 'idle' | 'key-tap' | 'key-reading' | 'ready' | 'playing';
 
 const ANALYSIS_WIDTH = 640;
 const ANALYSIS_INTERVAL_MS = 150;
 const VOTE_WINDOW = 10;
 const VOTES_TO_LOCK = 6;
 const LOCK_SHARE = 0.7;
+const KEY_READING_TIMEOUT_MS = 5000;
 const PLAYING_MS = 1400;
 
 const CLEFS: ClefType[] = ['treble', 'bass', 'alto', 'tenor'];
@@ -89,13 +95,15 @@ export default function CameraMode({ onExitToManual }: Props) {
   const [tapMarker, setTapMarker] = useState<TapMarker | null>(null);
   const [hintOverride, setHintOverride] = useState<string | null>(null);
   const [showKeyEditor, setShowKeyEditor] = useState(false);
-  const [staffFound, setStaffFound] = useState(false);
 
-  const staffFitRef = useRef<StaffFit | null>(null);
-  const glyphsRef = useRef<{ x: number; y: number; w: number; h: number }[]>([]);
+  const glyphsRef = useRef<DetectedGlyph[]>([]);
   const roiRef = useRef<KeySignatureROI | null>(null);
   const keyTapRef = useRef<{ ax: number; ay: number } | null>(null);
   const votesRef = useRef<{ type: KeySignatureAccidental; count: number }[]>([]);
+  const readingStartRef = useRef(0);
+  const lastBinaryRef = useRef<{ data: Uint8ClampedArray; width: number; height: number } | null>(null);
+  const lastNoteTapRef = useRef<{ ax: number; ay: number } | null>(null);
+  const lastGeoRef = useRef<StaffGeometry | null>(null);
   const lastGrayRef = useRef<Uint8ClampedArray | null>(null);
   const playTimeoutRef = useRef<number | null>(null);
   const hintTimeoutRef = useRef<number | null>(null);
@@ -161,46 +169,53 @@ export default function CameraMode({ onExitToManual }: Props) {
     []
   );
 
+  /** Snap a tap to the nearest line/space using fresh local geometry. */
+  const resolveNoteTap = useCallback(
+    (ax: number, ay: number): { pos: number; snappedAy: number } | null => {
+      const frame = lastBinaryRef.current;
+      if (!frame) return null;
+      const geo = detectStaffGeometry(frame.data, frame.width, frame.height, ax, ay);
+      if (!geo) return null;
+      if (!isOnStaff(geo, ax, ay)) return null;
+      const pos = quantizeStaffPosition(staffPositionAt(geo, ax, ay));
+      const yTop = geo.yTop0 + geo.skew * ax;
+      lastGeoRef.current = geo;
+      lastNoteTapRef.current = { ax, ay };
+      return { pos, snappedAy: yTop + ((7 - pos) / 2) * geo.staffSpace };
+    },
+    []
+  );
+
   const handleTap = useCallback(
     (clientX: number, clientY: number) => {
       const { phase: ph } = liveRef.current;
       if (ph !== 'key-tap' && ph !== 'key-reading' && ph !== 'ready' && ph !== 'playing') return;
       const container = containerRef.current;
       const mapping = getMapping();
-      const fit = staffFitRef.current;
       if (!container || !mapping) return;
-      if (!fit || fit.confidence < 0.2) {
-        flashHint('No staff in view — aim at your music');
-        return;
-      }
       const rect = container.getBoundingClientRect();
       const cx = clientX - rect.left;
       const cy = clientY - rect.top;
       const { ax, ay } = mapping.elementToAnalysis(cx, cy);
       if (ph === 'key-tap' || ph === 'key-reading') {
         // Screen 1: (re)start key-signature reading at the tapped spot.
-        if (!isOnStaff(fit, ax, ay, 4)) {
-          flashHint('Tap the key signature on the staff');
-          return;
-        }
         keyTapRef.current = { ax, ay };
         votesRef.current = [];
+        readingStartRef.current = Date.now();
         setPhase('key-reading');
         return;
       }
-      if (ph !== 'ready' && ph !== 'playing') return;
-      if (!isOnStaff(fit, ax, ay)) {
+      // Screen 2: tap a note. Geometry is detected fresh around the tap,
+      // so moving the phone between taps never leaves a stale fit behind.
+      const resolved = resolveNoteTap(ax, ay);
+      if (!resolved) {
         flashHint('Tap a note on the staff');
         return;
       }
-      const pos = quantizeStaffPosition(staffPositionAt(fit, ax, ay));
-      // Snap the marker to the detected line/space, not the raw touch point.
-      const topY = fit.lines[0].slope * ax + fit.lines[0].intercept;
-      const snappedAy = topY + ((7 - pos) / 2) * fit.staffSpace;
-      const snapped = mapping.analysisToElement(ax, snappedAy);
-      soundPosition(pos, snapped);
+      const snapped = mapping.analysisToElement(ax, resolved.snappedAy);
+      soundPosition(resolved.pos, snapped);
     },
-    [flashHint, getMapping, soundPosition]
+    [flashHint, getMapping, resolveNoteTap, soundPosition]
   );
 
   const nudge = useCallback(
@@ -209,17 +224,19 @@ export default function CameraMode({ onExitToManual }: Props) {
       const pos = Math.max(-14, Math.min(21, lastResult.pos + delta));
       const container = containerRef.current;
       const mapping = getMapping();
-      const fit = staffFitRef.current;
-      let marker: { cx: number; cy: number } = { cx: container ? container.clientWidth / 2 : 0, cy: 0 };
-      if (container && mapping && fit) {
-        const rect = container.getBoundingClientRect();
-        const ax = mapping.elementToAnalysis(rect.width / 2, 0).ax;
-        const topY = fit.lines[0].slope * ax + fit.lines[0].intercept;
-        marker = mapping.analysisToElement(ax, topY + ((7 - pos) / 2) * fit.staffSpace);
+      let marker: { cx: number; cy: number } | null = null;
+      const noteTap = lastNoteTapRef.current;
+      if (container && mapping && noteTap) {
+        const resolved = resolveNoteTap(noteTap.ax, noteTap.ay);
+        if (resolved) {
+          marker = mapping.analysisToElement(noteTap.ax, resolved.snappedAy);
+        }
       }
-      soundPosition(pos, marker);
+      if (!marker && tapMarker) marker = { cx: tapMarker.x, cy: tapMarker.y };
+      if (!marker && container) marker = { cx: container.clientWidth / 2, cy: container.clientHeight / 2 };
+      if (marker) soundPosition(pos, marker);
     },
-    [getMapping, lastResult, soundPosition]
+    [getMapping, lastResult, resolveNoteTap, soundPosition, tapMarker]
   );
 
   const retapKey = useCallback(() => {
@@ -227,9 +244,9 @@ export default function CameraMode({ onExitToManual }: Props) {
     roiRef.current = null;
     votesRef.current = [];
     lastGrayRef.current = null;
+    lastGeoRef.current = null;
     setKeySource('auto');
     setShowKeyEditor(false);
-    setStaffFound(false);
     setPhase('key-tap');
   }, []);
 
@@ -248,7 +265,7 @@ export default function CameraMode({ onExitToManual }: Props) {
     const workCanvas = document.createElement('canvas');
     workCanvasRef.current = workCanvas;
 
-    const drawOverlay = (staff: StaffFit | null, phase: Phase) => {
+    const drawOverlay = (phase: Phase) => {
       const canvas = canvasRef.current;
       const container = containerRef.current;
       const mapping = getMapping();
@@ -264,12 +281,15 @@ export default function CameraMode({ onExitToManual }: Props) {
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, rect.width, rect.height);
 
-      if (staff) {
+      // Fitted staff lines from the last note tap (confirmation).
+      const geo = lastGeoRef.current;
+      if (geo && (phase === 'ready' || phase === 'playing')) {
         ctx.strokeStyle = 'rgba(124, 58, 237, 0.85)';
         ctx.lineWidth = 2;
-        for (const line of staff.lines) {
-          const p0 = mapping.analysisToElement(0, line.intercept);
-          const p1 = mapping.analysisToElement(ANALYSIS_WIDTH, line.slope * ANALYSIS_WIDTH + line.intercept);
+        for (let i = 0; i < 5; i++) {
+          const y0 = geo.yTop0 + (i * geo.staffSpace) / 2;
+          const p0 = mapping.analysisToElement(0, y0);
+          const p1 = mapping.analysisToElement(ANALYSIS_WIDTH, y0 + geo.skew * ANALYSIS_WIDTH);
           ctx.beginPath();
           ctx.moveTo(p0.cx, p0.cy);
           ctx.lineTo(p1.cx, p1.cy);
@@ -277,7 +297,7 @@ export default function CameraMode({ onExitToManual }: Props) {
         }
       }
       const roi = roiRef.current;
-      if (roi && (phase === 'key-reading' || phase === 'key-confirm')) {
+      if (roi && phase === 'key-reading') {
         // Box around the tapped key-signature region.
         const p0 = mapping.analysisToElement(roi.x0, roi.y0);
         const p1 = mapping.analysisToElement(roi.x1, roi.y1);
@@ -291,13 +311,14 @@ export default function CameraMode({ onExitToManual }: Props) {
           const g1 = mapping.analysisToElement(g.x + g.w, g.y + g.h);
           ctx.strokeRect(g0.cx, g0.cy, g1.cx - g0.cx, g1.cy - g0.cy);
         }
-      }
-      if (phase === 'key-reading' && keyTapRef.current) {
-        const p = mapping.analysisToElement(keyTapRef.current.ax, keyTapRef.current.ay);
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        ctx.beginPath();
-        ctx.arc(p.cx, p.cy, 6, 0, Math.PI * 2);
-        ctx.fill();
+        const tap = keyTapRef.current;
+        if (tap) {
+          const p = mapping.analysisToElement(tap.ax, tap.ay);
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+          ctx.beginPath();
+          ctx.arc(p.cx, p.cy, 6, 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
     };
 
@@ -335,18 +356,14 @@ export default function CameraMode({ onExitToManual }: Props) {
       }
 
       const binary = binarize(gray, ANALYSIS_WIDTH, ah);
-      const staff = detectStaff(binary, ANALYSIS_WIDTH, ah);
-      staffFitRef.current = staff;
-      if (staff && staff.confidence > 0.2) {
-        setStaffFound(true);
-      }
+      lastBinaryRef.current = { data: binary, width: ANALYSIS_WIDTH, height: ah };
 
-      if (live.phase === 'key-reading' && staff && staff.confidence > 0.2 && keyTapRef.current) {
-        const roi = keyTapROI(keyTapRef.current.ax, staff, ANALYSIS_WIDTH, ah);
+      if (live.phase === 'key-reading' && keyTapRef.current) {
+        const roi = keyTapROI(keyTapRef.current.ax, keyTapRef.current.ay, ANALYSIS_WIDTH, ah);
         roiRef.current = roi;
-        const det = detectKeySignature(binary, ANALYSIS_WIDTH, ah, staff, roi);
+        const det = detectKeySignature(binary, ANALYSIS_WIDTH, ah, roi);
         glyphsRef.current = det.glyphs;
-        if (det.confidence > 0.35) {
+        if (det.confidence > 0.3) {
           votesRef.current.push({ type: det.type, count: det.count });
           if (votesRef.current.length > VOTE_WINDOW) votesRef.current.shift();
         }
@@ -370,15 +387,21 @@ export default function CameraMode({ onExitToManual }: Props) {
             setKeyCount(countStr as KeySignatureAccidentalCount);
             setKeySource('auto');
             votesRef.current = [];
-            setPhase('key-confirm');
+            const disp = getKeySignatureDisplayString(getKeySignatureName(type as KeySignatureAccidental, countStr as KeySignatureAccidentalCount));
+            flashHint(`${disp} major ✓`);
+            setPhase('ready');
           }
+        } else if (Date.now() - readingStartRef.current > KEY_READING_TIMEOUT_MS) {
+          votesRef.current = [];
+          flashHint("Couldn't read it — tap the sharps or flats");
+          setPhase('key-tap');
         }
-      } else if (live.phase !== 'key-confirm') {
+      } else {
         glyphsRef.current = [];
         roiRef.current = null;
       }
 
-      drawOverlay(staff, live.phase);
+      drawOverlay(live.phase);
     };
 
     setPhase('key-tap');
@@ -393,15 +416,9 @@ export default function CameraMode({ onExitToManual }: Props) {
   // --- Derived UI -----------------------------------------------------------
   const keyName = getKeySignatureName(keyType, keyCount);
   const keyDisplay = getKeySignatureDisplayString(keyName);
-  const keyCountLabel =
-    keyCount === '0'
-      ? 'no sharps or flats'
-      : `${keyCount} ${keyType === 'sharp' ? 'sharp' : 'flat'}${keyCount === '1' ? '' : 's'}`;
   const phaseHint =
     phase === 'key-tap'
-      ? staffFound
-        ? 'Tap the key signature'
-        : 'Finding staff… point at your music'
+      ? 'Tap the key signature'
       : phase === 'key-reading'
         ? 'Reading key signature…'
         : phase === 'ready'
@@ -462,7 +479,7 @@ export default function CameraMode({ onExitToManual }: Props) {
             </button>
           )}
           <button className="cam-secondary" onClick={onExitToManual}>
-            Use manual mode
+            Use manual mode instead
           </button>
         </div>
       </div>
@@ -537,22 +554,6 @@ export default function CameraMode({ onExitToManual }: Props) {
       )}
 
       <div className="cam-hintbar">{hint}</div>
-
-      {phase === 'key-confirm' && (
-        <div className="cam-sheet" role="dialog" aria-label="Confirm key signature">
-          <h3>Key signature</h3>
-          <p className="cam-key-big">{keyDisplay} major</p>
-          <p>{keyCountLabel}</p>
-          <div className="cam-sheet-actions">
-            <button className="cam-primary" onClick={() => setPhase('ready')}>
-              Tap a note →
-            </button>
-            <button className="cam-secondary" onClick={retapKey}>
-              Re-tap
-            </button>
-          </div>
-        </div>
-      )}
 
       {showKeyEditor && (
         <div className="cam-sheet" role="dialog" aria-label="Key signature">
